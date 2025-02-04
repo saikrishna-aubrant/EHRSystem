@@ -1,0 +1,17 @@
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\bin\Debug\net9.0\EHRSystem.Data.deps.json
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\bin\Debug\net9.0\EHRSystem.Data.runtimeconfig.json
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\bin\Debug\net9.0\EHRSystem.Data.dll
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\bin\Debug\net9.0\EHRSystem.Data.pdb
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\bin\Debug\net9.0\EHRSystem.Core.dll
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\bin\Debug\net9.0\EHRSystem.Core.pdb
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\EHRSystem.Data.csproj.AssemblyReference.cache
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\EHRSystem.Data.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\EHRSystem.Data.AssemblyInfoInputs.cache
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\EHRSystem.Data.AssemblyInfo.cs
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\EHRSystem.Data.csproj.CoreCompileInputs.cache
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\EHRSyste.7250D9B0.Up2Date
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\EHRSystem.Data.dll
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\refint\EHRSystem.Data.dll
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\EHRSystem.Data.pdb
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\EHRSystem.Data.genruntimeconfig.cache
+C:\Users\epic\Desktop\DeepSeek\EHRSystem\src\EHRSystem.Data\obj\Debug\net9.0\ref\EHRSystem.Data.dll

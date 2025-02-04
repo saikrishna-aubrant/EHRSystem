@@ -1,0 +1,19 @@
+@using EHRSystem.Core.ViewModels
+@using EHRSystem.Core.Models
+@model ApplicationRole
+
+<h2>Create New Role</h2>
+
+<form asp-action="Create">
+    <div class="form-group">
+        <label asp-for="Name"></label>
+        <input asp-for="Name" class="form-control" />
+    </div>
+    
+    <div class="form-group">
+        <label asp-for="Description"></label>
+        <input asp-for="Description" class="form-control" />
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Create</button>
+</form> 
