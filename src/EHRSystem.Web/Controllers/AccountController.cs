@@ -165,15 +165,25 @@ namespace EHRSystem.Web.Controllers
             var result = await _userManager.ResetPasswordAsync(user, model.Token, model.Password);
             if (result.Succeeded)
             {
-                return RedirectToAction("ResetPasswordConfirmation");
+                return RedirectToAction(nameof(ResetPasswordConfirmation));
             }
 
+            AddErrors(result);
+            
+            return View(model);
+        }
+
+        public IActionResult ResetPasswordConfirmation()
+        {
+            return View();
+        }
+
+        private void AddErrors(IdentityResult result)
+        {
             foreach (var error in result.Errors)
             {
                 ModelState.AddModelError(string.Empty, error.Description);
             }
-            
-            return View(model);
         }
     }
 } 
