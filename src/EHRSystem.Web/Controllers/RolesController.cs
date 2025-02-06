@@ -115,5 +115,26 @@ namespace EHRSystem.Web.Controllers
             foreach (var error in result.Errors)
                 ModelState.AddModelError("", error.Description);
         }
+
+        public async Task<IActionResult> Edit(string id)
+        {
+            var role = await _roleManager.FindByIdAsync(id);
+            if (role == null)
+            {
+                return NotFound();
+            }
+            return View(role);
+        }
+
+        public async Task<IActionResult> EditUsers(string roleName)
+        {
+            var role = await _roleManager.FindByNameAsync(roleName);
+            if (role == null)
+            {
+                return NotFound();
+            }
+            var users = await _userManager.GetUsersInRoleAsync(roleName);
+            return View(users);
+        }
     }
 } 

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using EHRSystem.Core.ViewModels;
 using EHRSystem.Core.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace EHRSystem.Web.Controllers
 {
@@ -18,48 +20,124 @@ namespace EHRSystem.Web.Controllers
             _emailService = emailService;
         }
 
-        [HttpGet]
-        public IActionResult Login(string returnUrl = null)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AdminPanel()
         {
-            ViewData["ReturnUrl"] = returnUrl;
-            return View();
+            var users = _userManager.Users.ToList();
+            var userRoles = new List<UserRoleViewModel>();
+            
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                userRoles.Add(new UserRoleViewModel
+                {
+                    UserId = user.Id,
+                    Email = user.Email,
+                    CurrentRole = roles.FirstOrDefault()
+                });
+            }
+            
+            return View(userRoles);
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult Register()
         {
-            return View();
+            var model = new RegisterViewModel
+            {
+                RoleOptions = new List<SelectListItem>
+                {
+                    new SelectListItem { Value = "Patient", Text = "Patient" }
+                }
+            };
+            return View(model);
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public IActionResult AdminRegister()
+        {
+            var model = new RegisterViewModel
+            {
+                RoleOptions = new List<SelectListItem>
+                {
+                    new SelectListItem { Value = "Doctor", Text = "Doctor" },
+                    new SelectListItem { Value = "Patient", Text = "Patient" }
+                }
+            };
+            return View("Register", model);
         }
 
         [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
             if (ModelState.IsValid)
             {
                 var user = new ApplicationUser 
                 { 
-                    UserName = model.Email,
+                    UserName = model.Email, 
                     Email = model.Email,
                     FirstName = model.FirstName,
-                    LastName = model.LastName,
-                    EmailConfirmed = true
+                    LastName = model.LastName
                 };
                 
                 var result = await _userManager.CreateAsync(user, model.Password);
                 
                 if (result.Succeeded)
                 {
-                    var emailConfirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                    await _userManager.ConfirmEmailAsync(user, emailConfirmationToken);
-
-                    await _signInManager.SignInAsync(user, isPersistent: false);
-                    return RedirectToAction("Index", "Home");
+                    string role = User.IsInRole("Admin") ? model.Role : "Patient";
+                    await _userManager.AddToRoleAsync(user, role);
+                    
+                    if (!User.IsInRole("Admin"))
+                    {
+                        await _signInManager.SignInAsync(user, isPersistent: false);
+                        return RedirectToAction("Index", "Home");
+                    }
+                    
+                    return RedirectToAction("AdminPanel");
                 }
                 
                 foreach (var error in result.Errors)
+                {
                     ModelState.AddModelError(string.Empty, error.Description);
+                }
             }
+            
+            model.RoleOptions = User.IsInRole("Admin") 
+                ? new List<SelectListItem>
+                {
+                    new SelectListItem { Value = "Doctor", Text = "Doctor" },
+                    new SelectListItem { Value = "Patient", Text = "Patient" }
+                }
+                : new List<SelectListItem>
+                {
+                    new SelectListItem { Value = "Patient", Text = "Patient" }
+                };
+            
             return View(model);
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ChangeRole(string userId, string newRole)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user != null)
+            {
+                var currentRoles = await _userManager.GetRolesAsync(user);
+                await _userManager.RemoveFromRolesAsync(user, currentRoles);
+                await _userManager.AddToRoleAsync(user, newRole);
+            }
+            return RedirectToAction("AdminPanel");
+        }
+
+        [HttpGet]
+        public IActionResult Login(string returnUrl = null)
+        {
+            ViewData["ReturnUrl"] = returnUrl;
+            return View();
         }
 
         [HttpPost]
@@ -184,6 +262,65 @@ namespace EHRSystem.Web.Controllers
             {
                 ModelState.AddModelError(string.Empty, error.Description);
             }
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> Profile()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+            
+            var model = new ProfileViewModel
+            {
+                Id = user.Id,
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Role = roles.FirstOrDefault()
+            };
+            
+            return View(model);
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> Profile(ProfileViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            user.Email = model.Email;
+            user.UserName = model.Email;
+            user.FirstName = model.FirstName;
+            user.LastName = model.LastName;
+
+            var result = await _userManager.UpdateAsync(user);
+            if (result.Succeeded)
+            {
+                TempData["StatusMessage"] = "Your profile has been updated";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+
+            return View(model);
         }
     }
 } 
