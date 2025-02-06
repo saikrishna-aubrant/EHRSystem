@@ -3,6 +3,8 @@ using EHRSystem.Core.Models;
 using EHRSystem.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using EHRSystem.Core;
+//using EHRSystem.Web.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,4 +73,6 @@ using (var scope = app.Services.CreateScope())
     await SeedData.Initialize(scope.ServiceProvider);
 }
 
-app.Run(); 
+app.Run();
+
+public partial class Program { } 
