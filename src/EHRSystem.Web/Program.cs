@@ -1,8 +1,9 @@
 // Add these at the top
 using EHRSystem.Core.Models;
-using EHRSystem.Data;
+using EHRSystem.Data;  // Change back to Data
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.InMemory;
 using EHRSystem.Core;
 //using EHRSystem.Web.Data;
 
@@ -20,7 +21,8 @@ builder.Services.AddSwaggerGen(c =>
 // Add Identity services
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 {
-    options.SignIn.RequireConfirmedAccount = true;
+    options.SignIn.RequireConfirmedAccount = false;
+    options.SignIn.RequireConfirmedEmail = false;
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
     options.Password.RequireUppercase = true;
@@ -31,13 +33,24 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 .AddEntityFrameworkStores<EhrDbContext>()
 .AddDefaultTokenProviders();
 
-// Replace existing DbContext registration with:
-builder.Services.AddDbContext<EhrDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("EHRDatabase"),
-        b => b.MigrationsAssembly("EHRSystem.Data")
-    )
-);
+// Update DbContext registration
+builder.Services.AddDbContext<EhrDbContext>((serviceProvider, options) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var useInMemory = configuration.GetValue<bool>("UseInMemoryDatabase");
+
+    if (useInMemory)
+    {
+        options.UseInMemoryDatabase("EHRSystem");
+    }
+    else
+    {
+        options.UseSqlServer(
+            configuration.GetConnectionString("EHRDatabase"),
+            b => b.MigrationsAssembly("EHRSystem.Data")
+        );
+    }
+});
 
 // [Requirement: US-AUTH-02] Configure session timeout
 builder.Services.ConfigureApplicationCookie(options => {
@@ -47,8 +60,6 @@ builder.Services.ConfigureApplicationCookie(options => {
     options.LoginPath = "/Account/Login";
     options.AccessDeniedPath = "/Account/AccessDenied";
 });
-
-builder.Services.AddScoped<IEmailService, EmailService>();
 
 var app = builder.Build();
 
