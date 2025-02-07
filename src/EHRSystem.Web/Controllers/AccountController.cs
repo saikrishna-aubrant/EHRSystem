@@ -11,13 +11,11 @@ namespace EHRSystem.Web.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
-        private readonly IEmailService _emailService;
 
-        public AccountController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IEmailService emailService)
+        public AccountController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
         {
             _userManager = userManager;
             _signInManager = signInManager;
-            _emailService = emailService;
         }
 
         [Authorize(Roles = "Admin")]
@@ -73,50 +71,83 @@ namespace EHRSystem.Web.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
+            // Remove role validation from ModelState if not admin
+            if (!User.IsInRole("Admin"))
+            {
+                ModelState.Remove("Role");
+                ModelState.Remove("RoleOptions");
+            }
+
             if (ModelState.IsValid)
             {
-                var user = new ApplicationUser 
-                { 
-                    UserName = model.Email, 
+                // Validate date of birth
+                if (model.DateOfBirth >= DateTime.Today)
+                {
+                    ModelState.AddModelError("DateOfBirth", "Date of birth cannot be in the future");
+                    return View(model);
+                }
+
+                string mrn = await GenerateMRN();
+                var user = new ApplicationUser
+                {
+                    UserName = model.Email,
                     Email = model.Email,
                     FirstName = model.FirstName,
-                    LastName = model.LastName
+                    MiddleName = model.MiddleName,
+                    LastName = model.LastName,
+                    DateOfBirth = model.DateOfBirth,
+                    Gender = model.Gender,
+                    PhoneNumber = model.PhoneNumber,
+                    Address = model.Address,
+                    City = model.City,
+                    State = model.State,
+                    ZipCode = model.ZipCode,
+                    EmergencyContactName = model.EmergencyContactName,
+                    EmergencyContactPhone = model.EmergencyContactPhone,
+                    EmergencyContactRelation = model.EmergencyContactRelation,
+                    InsuranceProvider = model.InsuranceProvider,
+                    InsurancePolicyNumber = model.InsurancePolicyNumber,
+                    MRN = mrn
                 };
-                
+
                 var result = await _userManager.CreateAsync(user, model.Password);
-                
                 if (result.Succeeded)
                 {
                     string role = User.IsInRole("Admin") ? model.Role : "Patient";
                     await _userManager.AddToRoleAsync(user, role);
-                    
+
+                    // Confirm email automatically
+                    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                    await _userManager.ConfirmEmailAsync(user, token);
+
+                    // Success message
+                    TempData["SuccessMessage"] = $"Welcome {user.FirstName}! Your account has been created successfully.";
+
                     if (!User.IsInRole("Admin"))
                     {
                         await _signInManager.SignInAsync(user, isPersistent: false);
-                        return RedirectToAction("Index", "Home");
                     }
-                    
-                    return RedirectToAction("AdminPanel");
+
+                    return RedirectToAction("Index", "Home");
                 }
-                
+
                 foreach (var error in result.Errors)
                 {
                     ModelState.AddModelError(string.Empty, error.Description);
                 }
             }
-            
-            model.RoleOptions = User.IsInRole("Admin") 
-                ? new List<SelectListItem>
-                {
-                    new SelectListItem { Value = "Doctor", Text = "Doctor" },
-                    new SelectListItem { Value = "Patient", Text = "Patient" }
-                }
-                : new List<SelectListItem>
-                {
-                    new SelectListItem { Value = "Patient", Text = "Patient" }
-                };
-            
+
+            // If we got this far, something failed, redisplay form
             return View(model);
+        }
+
+        private async Task<string> GenerateMRN()
+        {
+            // Generate unique MRN (Medical Record Number)
+            string prefix = "MRN";
+            string timestamp = DateTime.Now.ToString("yyyyMMdd");
+            string random = new Random().Next(1000, 9999).ToString();
+            return $"{prefix}{timestamp}{random}";
         }
 
         [HttpPost]
@@ -157,35 +188,47 @@ namespace EHRSystem.Web.Controllers
             
             if (ModelState.IsValid)
             {
-                // Add debug logging
-                Console.WriteLine($"Login attempt for {model.Email}");
-                
                 var user = await _userManager.FindByEmailAsync(model.Email);
                 if (user != null)
                 {
-                    Console.WriteLine($"User found: {user.Email}");
-                    Console.WriteLine($"Password hash: {user.PasswordHash}");
+                    // Check if user is active
+                    if (!user.IsActive)
+                    {
+                        ModelState.AddModelError(string.Empty, "Account is deactivated.");
+                        return View(model);
+                    }
+
+                    var result = await _signInManager.PasswordSignInAsync(
+                        model.Email, 
+                        model.Password, 
+                        model.RememberMe, 
+                        lockoutOnFailure: false);
+
+                    if (result.Succeeded)
+                    {
+                        return LocalRedirect(returnUrl);
+                    }
+                    if (result.RequiresTwoFactor)
+                    {
+                        return RedirectToPage("./LoginWith2fa", new { ReturnUrl = returnUrl, RememberMe = model.RememberMe });
+                    }
+                    if (result.IsLockedOut)
+                    {
+                        return RedirectToPage("./Lockout");
+                    }
+                    else
+                    {
+                        ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                        return View(model);
+                    }
                 }
                 else
                 {
-                    Console.WriteLine($"User not found: {model.Email}");
+                    ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 }
-
-                var result = await _signInManager.PasswordSignInAsync(
-                    model.Email, 
-                    model.Password, 
-                    model.RememberMe, 
-                    lockoutOnFailure: false);
-
-                if (result.Succeeded)
-                {
-                    Console.WriteLine("Login successful");
-                    return LocalRedirect(returnUrl);
-                }
-                
-                Console.WriteLine($"Login failed: {result}");
-                ModelState.AddModelError(string.Empty, "Invalid login attempt");
             }
+
+            // If we got this far, something failed, redisplay form
             return View(model);
         }
 
@@ -204,14 +247,9 @@ namespace EHRSystem.Web.Controllers
                 var user = await _userManager.FindByEmailAsync(model.Email);
                 if (user != null)
                 {
-                    var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                    var callbackUrl = Url.Action("ResetPassword", "Account", 
-                        new { email = model.Email, token }, protocol: HttpContext.Request.Scheme);
-                    
-                    await _emailService.SendPasswordResetEmailAsync(user.Email, callbackUrl);
+                    // Instead of sending email, just show a message
+                    TempData["InfoMessage"] = "If your email is registered, you will receive password reset instructions shortly.";
                 }
-                
-                // Always return confirmation to prevent email enumeration
                 return View("ForgotPasswordConfirmation");
             }
             return View(model);

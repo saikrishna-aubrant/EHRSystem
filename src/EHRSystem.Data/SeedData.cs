@@ -10,47 +10,42 @@ namespace EHRSystem.Data
     {
         public static async Task Initialize(IServiceProvider serviceProvider)
         {
-            var roleManager = serviceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
             var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var roleManager = serviceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
 
-            // 1. Seed Roles
-            string[] roleNames = { "Admin", "Doctor", "Nurse", "Patient" };
-            foreach (var roleName in roleNames)
+            // Seed roles
+            string[] roles = { "Admin", "Doctor", "Patient" };
+            foreach (var role in roles)
             {
-                if (!await roleManager.RoleExistsAsync(roleName))
+                if (!await roleManager.RoleExistsAsync(role))
                 {
-                    await roleManager.CreateAsync(new ApplicationRole(roleName) 
+                    var applicationRole = new ApplicationRole(role)
                     {
-                        Description = $"{roleName} role"
-                    });
+                        Description = $"{role} role in the EHR system"
+                    };
+                    await roleManager.CreateAsync(applicationRole);
                 }
             }
 
-            // 2. Seed Admin User
-            var adminEmail = "admin@ehr.com";
-            var adminUser = await userManager.FindByEmailAsync(adminEmail);
-            
-            if (adminUser == null)
+            // Seed admin user
+            var adminEmail = "admin@ehrsystem.com";
+            if (await userManager.FindByEmailAsync(adminEmail) == null)
             {
-                adminUser = new ApplicationUser
+                var admin = new ApplicationUser
                 {
                     UserName = adminEmail,
                     Email = adminEmail,
-                    FirstName = "Admin",
-                    LastName = "User",
-                    EmailConfirmed = true
+                    FirstName = "System",
+                    LastName = "Admin",
+                    EmailConfirmed = true,
+                    IsActive = true
                 };
-                
-                Console.WriteLine($"Seeding admin user: {adminEmail}");
-                var createResult = await userManager.CreateAsync(adminUser, "Admin@1234!");
-                Console.WriteLine($"Create result: {createResult.Succeeded}");
-                
-                if (!createResult.Succeeded)
+
+                var result = await userManager.CreateAsync(admin, "Admin123!");
+                if (result.Succeeded)
                 {
-                    throw new Exception($"Admin user creation failed: {string.Join(", ", createResult.Errors)}");
+                    await userManager.AddToRoleAsync(admin, "Admin");
                 }
-                
-                await userManager.AddToRoleAsync(adminUser, "Admin");
             }
         }
     }
