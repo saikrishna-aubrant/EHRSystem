@@ -3,7 +3,6 @@ using EHRSystem.Core.Models;
 using EHRSystem.Data;  // Change back to Data
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.InMemory;
 using EHRSystem.Core;
 //using EHRSystem.Web.Data;
 
@@ -34,23 +33,19 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 .AddDefaultTokenProviders();
 
 // Update DbContext registration
-builder.Services.AddDbContext<EhrDbContext>((serviceProvider, options) =>
-{
-    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-    var useInMemory = configuration.GetValue<bool>("UseInMemoryDatabase");
-
-    if (useInMemory)
-    {
-        options.UseInMemoryDatabase("EHRSystem");
-    }
-    else
-    {
-        options.UseSqlServer(
-            configuration.GetConnectionString("EHRDatabase"),
-            b => b.MigrationsAssembly("EHRSystem.Data")
-        );
-    }
-});
+builder.Services.AddDbContext<EhrDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("EHRDatabase"),
+        sqlServerOptionsAction: sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+            sqlOptions.MigrationsAssembly("EHRSystem.Data");
+        }
+    )
+);
 
 // [Requirement: US-AUTH-02] Configure session timeout
 builder.Services.ConfigureApplicationCookie(options => {
@@ -81,7 +76,26 @@ app.MapControllerRoute(
 // Seed data
 using (var scope = app.Services.CreateScope())
 {
-    await SeedData.Initialize(scope.ServiceProvider);
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<EhrDbContext>();
+        
+        // Create database if it doesn't exist
+        context.Database.EnsureCreated();
+        
+        // Apply any pending migrations
+        context.Database.Migrate();
+        
+        // Seed data
+        await SeedData.Initialize(services);
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while initializing the database.");
+        throw;
+    }
 }
 
 app.Run();

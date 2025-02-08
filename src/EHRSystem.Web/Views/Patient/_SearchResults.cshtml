@@ -1,0 +1,54 @@
+@model IEnumerable<PatientSearchResultViewModel>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th><a href="#" class="sort-header" data-sort="MRN">Patient ID</a></th>
+                <th><a href="#" class="sort-header" data-sort="FullName">Full Name</a></th>
+                <th><a href="#" class="sort-header" data-sort="DateOfBirth">Date of Birth</a></th>
+                <th><a href="#" class="sort-header" data-sort="PhoneNumber">Phone Number</a></th>
+                <th><a href="#" class="sort-header" data-sort="LastVisitDate">Last Visit</a></th>
+                <th><a href="#" class="sort-header" data-sort="InsuranceProvider">Insurance</a></th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var patient in Model)
+            {
+                <tr>
+                    <td>@patient.Id</td>
+                    <td>@patient.FullName</td>
+                    <td>@patient.DateOfBirth.ToShortDateString()</td>
+                    <td>@patient.PhoneNumber</td>
+                    <td>@(patient.LastVisitDate?.ToShortDateString() ?? "N/A")</td>
+                    <td>@patient.InsuranceProvider</td>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@patient.Id" class="btn btn-sm btn-info">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (Model.Any())
+{
+    var first = Model.First();
+    <nav>
+        <ul class="pagination">
+            @for (int i = 1; i <= first.PageCount; i++)
+            {
+                <li class="page-item @(i == first.CurrentPage ? "active" : "")">
+                    <a class="page-link" href="#" data-page="@i">@i</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+else
+{
+    <div class="alert alert-info">No patients found matching your search criteria.</div>
+} 

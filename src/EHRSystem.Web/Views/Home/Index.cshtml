@@ -2,6 +2,15 @@
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center d-flex align-items-center justify-content-center" style="height: 80vh;">
+<div class="text-center">
     <h1 class="display-4">Welcome to EHR System</h1>
+    
+    @if (User.Identity?.IsAuthenticated == true && (User.IsInRole("Doctor") || User.IsInRole("Admin")))
+    {
+        <div class="mt-4">
+            <a asp-controller="Patient" asp-action="Search" class="btn btn-primary">
+                <i class="bi bi-search"></i> Search Patients
+            </a>
+        </div>
+    }
 </div> 

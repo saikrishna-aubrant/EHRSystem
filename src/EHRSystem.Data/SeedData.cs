@@ -38,7 +38,10 @@ namespace EHRSystem.Data
                     FirstName = "System",
                     LastName = "Admin",
                     EmailConfirmed = true,
-                    IsActive = true
+                    IsActive = true,
+                    DateOfBirth = new DateTime(1980, 1, 1), // Default date
+                    Gender = "Other",
+                    MRN = "ADMIN0001"
                 };
 
                 var result = await userManager.CreateAsync(admin, "Admin123!");

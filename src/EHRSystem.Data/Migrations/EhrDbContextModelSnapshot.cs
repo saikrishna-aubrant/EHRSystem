@@ -93,7 +93,7 @@ namespace EHRSystem.Data.Migrations
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Gender")
                         .HasColumnType("nvarchar(max)");
@@ -102,14 +102,17 @@ namespace EHRSystem.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("InsuranceProvider")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("LastName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("LastVisitDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
@@ -118,7 +121,7 @@ namespace EHRSystem.Data.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("MRN")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("MiddleName")
                         .HasColumnType("nvarchar(max)");
@@ -135,10 +138,13 @@ namespace EHRSystem.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PhoneNumber")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime>("RegistrationDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
@@ -158,6 +164,12 @@ namespace EHRSystem.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DateOfBirth");
+
+                    b.HasIndex("InsuranceProvider");
+
+                    b.HasIndex("MRN");
+
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -165,6 +177,12 @@ namespace EHRSystem.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("PhoneNumber");
+
+                    b.HasIndex("RegistrationDate");
+
+                    b.HasIndex("FirstName", "LastName");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });

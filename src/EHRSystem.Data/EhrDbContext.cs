@@ -17,6 +17,14 @@ namespace EHRSystem.Data
             builder.Entity<ApplicationUser>(b =>
             {
                 b.Property(u => u.Id).HasMaxLength(85);
+                
+                // Add indexes for frequently searched fields
+                b.HasIndex(u => new { u.FirstName, u.LastName });
+                b.HasIndex(u => u.PhoneNumber);
+                b.HasIndex(u => u.DateOfBirth);
+                b.HasIndex(u => u.InsuranceProvider);
+                b.HasIndex(u => u.RegistrationDate);
+                b.HasIndex(u => u.MRN);
             });
 
             builder.Entity<ApplicationRole>(b =>

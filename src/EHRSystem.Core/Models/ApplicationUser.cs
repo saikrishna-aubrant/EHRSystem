@@ -35,6 +35,10 @@ namespace EHRSystem.Core.Models
         
         // Medical Record Number
         public string? MRN { get; set; }
+
+        // Registration and Visit Info
+        public DateTime RegistrationDate { get; set; } = DateTime.UtcNow;
+        public DateTime? LastVisitDate { get; set; }
     }
 
     public class ApplicationRole : IdentityRole

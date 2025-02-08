@@ -31,8 +31,8 @@ namespace EHRSystem.Data.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(85)", maxLength: 85, nullable: false),
-                    FirstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    LastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    FirstName = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    LastName = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
                     MiddleName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     DateOfBirth = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -44,9 +44,11 @@ namespace EHRSystem.Data.Migrations
                     EmergencyContactName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     EmergencyContactPhone = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     EmergencyContactRelation = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    InsuranceProvider = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    InsuranceProvider = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     InsurancePolicyNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    MRN = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    MRN = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    RegistrationDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastVisitDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -55,7 +57,7 @@ namespace EHRSystem.Data.Migrations
                     PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     SecurityStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ConcurrencyStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
                     TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
                     LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
@@ -204,6 +206,36 @@ namespace EHRSystem.Data.Migrations
                 name: "EmailIndex",
                 table: "AspNetUsers",
                 column: "NormalizedEmail");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_DateOfBirth",
+                table: "AspNetUsers",
+                column: "DateOfBirth");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_FirstName_LastName",
+                table: "AspNetUsers",
+                columns: new[] { "FirstName", "LastName" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_InsuranceProvider",
+                table: "AspNetUsers",
+                column: "InsuranceProvider");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_MRN",
+                table: "AspNetUsers",
+                column: "MRN");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_PhoneNumber",
+                table: "AspNetUsers",
+                column: "PhoneNumber");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_RegistrationDate",
+                table: "AspNetUsers",
+                column: "RegistrationDate");
 
             migrationBuilder.CreateIndex(
                 name: "UserNameIndex",

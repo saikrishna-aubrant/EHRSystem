@@ -1,0 +1,94 @@
+@model PatientSearchViewModel
+
+<div class="card">
+    <div class="card-header">
+        <h3>Patient Search</h3>
+    </div>
+    <div class="card-body">
+        <form id="searchForm" method="get" class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label asp-for="PatientId" class="form-label"></label>
+                    <input asp-for="PatientId" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="Name" class="form-label"></label>
+                    <input asp-for="Name" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="DateOfBirth" class="form-label"></label>
+                    <input asp-for="DateOfBirth" class="form-control" type="date" />
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="PhoneNumber" class="form-label"></label>
+                    <input asp-for="PhoneNumber" class="form-control" />
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-4">
+                    <label asp-for="InsuranceProvider" class="form-label"></label>
+                    <input asp-for="InsuranceProvider" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="RegistrationDateFrom" class="form-label"></label>
+                    <input asp-for="RegistrationDateFrom" class="form-control" type="date" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="RegistrationDateTo" class="form-label"></label>
+                    <input asp-for="RegistrationDateTo" class="form-control" type="date" />
+                </div>
+            </div>
+
+            <input type="hidden" id="SortBy" asp-for="SortBy" />
+            <input type="hidden" id="SortDirection" asp-for="SortDirection" />
+            <input type="hidden" id="PageNumber" asp-for="PageNumber" value="1" />
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">Search</button>
+                <button type="reset" class="btn btn-secondary">Reset</button>
+            </div>
+        </form>
+
+        <div id="searchResults">
+            <!-- Results will be loaded here -->
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            function performSearch(page = 1) {
+                $('#PageNumber').val(page);
+                var form = $('#searchForm');
+                var url = '@Url.Action("SearchResults")?' + form.serialize();
+                
+                $('#searchResults').load(url);
+            }
+
+            $('#searchForm').on('submit', function(e) {
+                e.preventDefault();
+                performSearch();
+            });
+
+            $(document).on('click', '.page-link', function(e) {
+                e.preventDefault();
+                var page = $(this).data('page');
+                performSearch(page);
+            });
+
+            $(document).on('click', '.sort-header', function(e) {
+                e.preventDefault();
+                var sortBy = $(this).data('sort');
+                var currentDirection = $(this).data('direction') || 'asc';
+                var newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                
+                $('#SortBy').val(sortBy);
+                $('#SortDirection').val(newDirection);
+                
+                performSearch();
+            });
+        });
+    </script>
+} 
