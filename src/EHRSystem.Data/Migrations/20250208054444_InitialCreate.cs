@@ -49,6 +49,8 @@ namespace EHRSystem.Data.Migrations
                     MRN = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     RegistrationDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     LastVisitDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    LastModifiedById = table.Column<string>(type: "nvarchar(85)", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -67,6 +69,11 @@ namespace EHRSystem.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetUsers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AspNetUsers_AspNetUsers_LastModifiedById",
+                        column: x => x.LastModifiedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -88,6 +95,41 @@ namespace EHRSystem.Data.Migrations
                         principalTable: "AspNetRoles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Allergies",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PatientId = table.Column<string>(type: "nvarchar(85)", nullable: false),
+                    AllergenName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Reaction = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Severity = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedById = table.Column<string>(type: "nvarchar(85)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastModifiedById = table.Column<string>(type: "nvarchar(85)", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Allergies", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Allergies_AspNetUsers_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Allergies_AspNetUsers_LastModifiedById",
+                        column: x => x.LastModifiedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Allergies_AspNetUsers_PatientId",
+                        column: x => x.PatientId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -175,6 +217,133 @@ namespace EHRSystem.Data.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "MedicalHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PatientId = table.Column<string>(type: "nvarchar(85)", nullable: false),
+                    Condition = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    DiagnosedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Treatment = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedById = table.Column<string>(type: "nvarchar(85)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastModifiedById = table.Column<string>(type: "nvarchar(85)", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MedicalHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MedicalHistories_AspNetUsers_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_MedicalHistories_AspNetUsers_LastModifiedById",
+                        column: x => x.LastModifiedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_MedicalHistories_AspNetUsers_PatientId",
+                        column: x => x.PatientId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Medications",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PatientId = table.Column<string>(type: "nvarchar(85)", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Dosage = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Frequency = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PrescribedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    PrescribedById = table.Column<string>(type: "nvarchar(85)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastModifiedById = table.Column<string>(type: "nvarchar(85)", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Medications", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Medications_AspNetUsers_LastModifiedById",
+                        column: x => x.LastModifiedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Medications_AspNetUsers_PatientId",
+                        column: x => x.PatientId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Medications_AspNetUsers_PrescribedById",
+                        column: x => x.PrescribedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PatientVisits",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PatientId = table.Column<string>(type: "nvarchar(85)", nullable: false),
+                    VisitDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Diagnosis = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Treatment = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    DoctorId = table.Column<string>(type: "nvarchar(85)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastModifiedById = table.Column<string>(type: "nvarchar(85)", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PatientVisits", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PatientVisits_AspNetUsers_DoctorId",
+                        column: x => x.DoctorId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PatientVisits_AspNetUsers_LastModifiedById",
+                        column: x => x.LastModifiedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PatientVisits_AspNetUsers_PatientId",
+                        column: x => x.PatientId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Allergies_CreatedById",
+                table: "Allergies",
+                column: "CreatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Allergies_LastModifiedById",
+                table: "Allergies",
+                column: "LastModifiedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Allergies_PatientId",
+                table: "Allergies",
+                column: "PatientId");
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -223,6 +392,11 @@ namespace EHRSystem.Data.Migrations
                 column: "InsuranceProvider");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_LastModifiedById",
+                table: "AspNetUsers",
+                column: "LastModifiedById");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_AspNetUsers_MRN",
                 table: "AspNetUsers",
                 column: "MRN");
@@ -243,11 +417,59 @@ namespace EHRSystem.Data.Migrations
                 column: "NormalizedUserName",
                 unique: true,
                 filter: "[NormalizedUserName] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicalHistories_CreatedById",
+                table: "MedicalHistories",
+                column: "CreatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicalHistories_LastModifiedById",
+                table: "MedicalHistories",
+                column: "LastModifiedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedicalHistories_PatientId",
+                table: "MedicalHistories",
+                column: "PatientId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Medications_LastModifiedById",
+                table: "Medications",
+                column: "LastModifiedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Medications_PatientId",
+                table: "Medications",
+                column: "PatientId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Medications_PrescribedById",
+                table: "Medications",
+                column: "PrescribedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientVisits_DoctorId",
+                table: "PatientVisits",
+                column: "DoctorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientVisits_LastModifiedById",
+                table: "PatientVisits",
+                column: "LastModifiedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientVisits_PatientId",
+                table: "PatientVisits",
+                column: "PatientId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "Allergies");
+
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
 
@@ -262,6 +484,15 @@ namespace EHRSystem.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUserTokens");
+
+            migrationBuilder.DropTable(
+                name: "MedicalHistories");
+
+            migrationBuilder.DropTable(
+                name: "Medications");
+
+            migrationBuilder.DropTable(
+                name: "PatientVisits");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

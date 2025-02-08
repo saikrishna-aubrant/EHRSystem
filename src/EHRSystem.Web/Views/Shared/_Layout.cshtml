@@ -40,6 +40,12 @@
                                 <a class="nav-link" asp-controller="Patient" asp-action="Search">Patient Search</a>
                             </li>
                         }
+                        @if (User.IsInRole("Patient"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Patient" asp-action="Dashboard">My Dashboard</a>
+                            </li>
+                        }
                         <li class="nav-item">
                             <a class="nav-link" asp-controller="Account" asp-action="Profile">Profile</a>
                         </li>
