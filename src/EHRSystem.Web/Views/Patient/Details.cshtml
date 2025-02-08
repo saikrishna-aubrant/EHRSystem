@@ -1,0 +1,222 @@
+@model PatientProfileViewModel
+@{
+    ViewData["Title"] = $"Patient: {Model.FullName}";
+}
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">Patient Profile</h4>
+        @if (User.IsInRole("Admin") || User.IsInRole("Doctor"))
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Edit Profile
+            </a>
+        }
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Basic Information</h5>
+                <dl class="row">
+                    <dt class="col-sm-4">MRN</dt>
+                    <dd class="col-sm-8">@Model.MRN</dd>
+
+                    <dt class="col-sm-4">Full Name</dt>
+                    <dd class="col-sm-8">@Model.FullName</dd>
+
+                    <dt class="col-sm-4">Date of Birth</dt>
+                    <dd class="col-sm-8">@Model.DateOfBirth.ToShortDateString()</dd>
+
+                    <dt class="col-sm-4">Gender</dt>
+                    <dd class="col-sm-8">@Model.Gender</dd>
+                </dl>
+            </div>
+            <div class="col-md-6">
+                <h5>Contact Information</h5>
+                <dl class="row">
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">@Model.Email</dd>
+
+                    <dt class="col-sm-4">Phone</dt>
+                    <dd class="col-sm-8">@Model.PhoneNumber</dd>
+
+                    <dt class="col-sm-4">Address</dt>
+                    <dd class="col-sm-8">
+                        @Model.Address<br />
+                        @Model.City, @Model.State @Model.ZipCode
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h5>Emergency Contact</h5>
+                <dl class="row">
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">@Model.EmergencyContactName</dd>
+
+                    <dt class="col-sm-4">Phone</dt>
+                    <dd class="col-sm-8">@Model.EmergencyContactPhone</dd>
+
+                    <dt class="col-sm-4">Relation</dt>
+                    <dd class="col-sm-8">@Model.EmergencyContactRelation</dd>
+                </dl>
+            </div>
+            <div class="col-md-6">
+                <h5>Insurance Information</h5>
+                <dl class="row">
+                    <dt class="col-sm-4">Provider</dt>
+                    <dd class="col-sm-8">@Model.InsuranceProvider</dd>
+
+                    <dt class="col-sm-4">Policy Number</dt>
+                    <dd class="col-sm-8">@Model.InsurancePolicyNumber</dd>
+                </dl>
+            </div>
+        </div>
+
+        @if (Model.MedicalHistory != null && Model.MedicalHistory.Any())
+        {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h5>Medical History</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Condition</th>
+                                    <th>Diagnosed Date</th>
+                                    <th>Treatment</th>
+                                    <th>Status</th>
+                                    <th>Added By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var history in Model.MedicalHistory)
+                                {
+                                    <tr>
+                                        <td>@history.Condition</td>
+                                        <td>@history.DiagnosedDate.ToShortDateString()</td>
+                                        <td>@history.Treatment</td>
+                                        <td>@(history.IsActive ? "Active" : "Resolved")</td>
+                                        <td>@history.CreatedBy</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (Model.Medications != null && Model.Medications.Any())
+        {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h5>Active Medications</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Medication</th>
+                                    <th>Dosage</th>
+                                    <th>Frequency</th>
+                                    <th>Prescribed By</th>
+                                    <th>Prescribed Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var med in Model.Medications)
+                                {
+                                    <tr>
+                                        <td>@med.Name</td>
+                                        <td>@med.Dosage</td>
+                                        <td>@med.Frequency</td>
+                                        <td>@med.PrescribedBy</td>
+                                        <td>@med.PrescribedDate.ToShortDateString()</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (Model.Allergies != null && Model.Allergies.Any())
+        {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h5>Allergies</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Allergen</th>
+                                    <th>Reaction</th>
+                                    <th>Severity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var allergy in Model.Allergies)
+                                {
+                                    <tr>
+                                        <td>@allergy.AllergenName</td>
+                                        <td>@allergy.Reaction</td>
+                                        <td>@allergy.Severity</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (Model.RecentVisits != null && Model.RecentVisits.Any())
+        {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h5>Recent Visits</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reason</th>
+                                    <th>Diagnosis</th>
+                                    <th>Treatment</th>
+                                    <th>Doctor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var visit in Model.RecentVisits)
+                                {
+                                    <tr>
+                                        <td>@visit.VisitDate.ToShortDateString()</td>
+                                        <td>@visit.Reason</td>
+                                        <td>@visit.Diagnosis</td>
+                                        <td>@visit.Treatment</td>
+                                        <td>@visit.DoctorName</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <small class="text-muted">
+                    Registration Date: @Model.RegistrationDate.ToShortDateString()
+                    @if (Model.LastModifiedAt.HasValue)
+                    {
+                        <span>| Last Modified: @Model.LastModifiedAt.Value.ToShortDateString() by @Model.LastModifiedBy</span>
+                    }
+                </small>
+            </div>
+        </div>
+    </div>
+</div> 

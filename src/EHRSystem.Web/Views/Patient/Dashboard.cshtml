@@ -1,0 +1,197 @@
+@model PatientDashboardViewModel
+@{
+    ViewData["Title"] = "Patient Dashboard";
+}
+
+<!-- US-PAT-04: Patient Dashboard -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Personal Information</h5>
+            </div>
+            <div class="card-body">
+                <dl>
+                    <dt>Name</dt>
+                    <dd>@Model.FullName</dd>
+                    <dt>MRN</dt>
+                    <dd>@Model.MRN</dd>
+                    <dt>Date of Birth</dt>
+                    <dd>@Model.DateOfBirth.ToShortDateString()</dd>
+                    <dt>Email</dt>
+                    <dd>@Model.Email</dd>
+                    <dt>Phone</dt>
+                    <dd>@Model.PhoneNumber</dd>
+                </dl>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#updateContactModal">
+                    Update Contact Info
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Upcoming Appointments</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#requestAppointmentModal">
+                    Request Appointment
+                </button>
+            </div>
+            <div class="card-body">
+                @if (Model.UpcomingAppointments.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Doctor</th>
+                                    <th>Purpose</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var appointment in Model.UpcomingAppointments)
+                                {
+                                    <tr>
+                                        <td>@appointment.AppointmentDate.ToString("g")</td>
+                                        <td>@appointment.DoctorName</td>
+                                        <td>@appointment.Purpose</td>
+                                        <td>@appointment.Status</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No upcoming appointments</p>
+                }
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Visits</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.RecentVisits.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Doctor</th>
+                                    <th>Reason</th>
+                                    <th>Diagnosis</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var visit in Model.RecentVisits)
+                                {
+                                    <tr>
+                                        <td>@visit.VisitDate.ToShortDateString()</td>
+                                        <td>@visit.DoctorName</td>
+                                        <td>@visit.Reason</td>
+                                        <td>@visit.Diagnosis</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No recent visits</p>
+                }
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Test Results</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.TestResults.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Test</th>
+                                    <th>Result</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var test in Model.TestResults)
+                                {
+                                    <tr>
+                                        <td>@test.TestDate.ToShortDateString()</td>
+                                        <td>@test.TestName</td>
+                                        <td>@test.Result (@test.NormalRange)</td>
+                                        <td>@test.Status</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No test results available</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Contact Information Modal -->
+<div class="modal fade" id="updateContactModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="UpdateContactInfo" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Contact Information</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Add form fields for contact information -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Request Appointment Modal -->
+<div class="modal fade" id="requestAppointmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="RequestAppointment" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">Request Appointment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Add form fields for appointment request -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+} 

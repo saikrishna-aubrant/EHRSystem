@@ -39,6 +39,11 @@ namespace EHRSystem.Core.Models
         // Registration and Visit Info
         public DateTime RegistrationDate { get; set; } = DateTime.UtcNow;
         public DateTime? LastVisitDate { get; set; }
+
+        // Audit fields
+        public string? LastModifiedById { get; set; }
+        public ApplicationUser? LastModifiedBy { get; set; }
+        public DateTime? LastModifiedAt { get; set; }
     }
 
     public class ApplicationRole : IdentityRole
