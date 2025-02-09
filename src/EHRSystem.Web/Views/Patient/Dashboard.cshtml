@@ -33,16 +33,16 @@
     <div class="col-md-8">
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Upcoming Appointments</h5>
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#requestAppointmentModal">
-                    Request Appointment
-                </button>
+                <h4 class="mb-0">Upcoming Appointments</h4>
+                <a href="@Url.Action("Index", "Appointments")" class="btn btn-primary">
+                    <i class="bi bi-calendar-plus"></i> Manage Appointments
+                </a>
             </div>
             <div class="card-body">
-                @if (Model.UpcomingAppointments.Any())
+                @if (Model.UpcomingAppointments != null && Model.UpcomingAppointments.Any())
                 {
                     <div class="table-responsive">
-                        <table class="table">
+                        <table class="table table-striped">
                             <thead>
                                 <tr>
                                     <th>Date</th>
@@ -55,10 +55,19 @@
                                 @foreach (var appointment in Model.UpcomingAppointments)
                                 {
                                     <tr>
-                                        <td>@appointment.AppointmentDate.ToString("g")</td>
+                                        <td>@appointment.AppointmentDate.ToString("MMM dd, yyyy HH:mm")</td>
                                         <td>@appointment.DoctorName</td>
                                         <td>@appointment.Purpose</td>
-                                        <td>@appointment.Status</td>
+                                        <td>
+                                            <span class="badge bg-@(appointment.Status.ToLower() switch {
+                                                "confirmed" => "success",
+                                                "requested" => "warning",
+                                                "cancelled" => "danger",
+                                                _ => "secondary"
+                                            })">
+                                                @appointment.Status
+                                            </span>
+                                        </td>
                                     </tr>
                                 }
                             </tbody>
@@ -67,7 +76,7 @@
                 }
                 else
                 {
-                    <p class="text-muted">No upcoming appointments</p>
+                    <p class="text-muted mb-0">No upcoming appointments.</p>
                 }
             </div>
         </div>
@@ -160,32 +169,44 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Add form fields for contact information -->
+                    <div class="mb-3">
+                        <label for="PhoneNumber" class="form-label">Phone Number</label>
+                        <input type="tel" name="PhoneNumber" id="PhoneNumber" class="form-control" value="@Model.PhoneNumber" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="EmergencyContactName" class="form-label">Emergency Contact Name</label>
+                        <input type="text" name="EmergencyContactName" id="EmergencyContactName" class="form-control" value="@ViewBag.EmergencyContactName" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="EmergencyContactPhone" class="form-label">Emergency Contact Phone</label>
+                        <input type="tel" name="EmergencyContactPhone" id="EmergencyContactPhone" class="form-control" value="@ViewBag.EmergencyContactPhone" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="EmergencyContactRelation" class="form-label">Relationship to Emergency Contact</label>
+                        <input type="text" name="EmergencyContactRelation" id="EmergencyContactRelation" class="form-control" value="@ViewBag.EmergencyContactRelation" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="Address" class="form-label">Address</label>
+                        <input type="text" name="Address" id="Address" class="form-control" value="@ViewBag.Address" />
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="City" class="form-label">City</label>
+                            <input type="text" name="City" id="City" class="form-control" value="@ViewBag.City" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="State" class="form-label">State</label>
+                            <input type="text" name="State" id="State" class="form-control" value="@ViewBag.State" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="ZipCode" class="form-label">ZIP Code</label>
+                            <input type="text" name="ZipCode" id="ZipCode" class="form-control" pattern="\d{5}(-\d{4})?" value="@ViewBag.ZipCode" />
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Request Appointment Modal -->
-<div class="modal fade" id="requestAppointmentModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form asp-action="RequestAppointment" method="post">
-                <div class="modal-header">
-                    <h5 class="modal-title">Request Appointment</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Add form fields for appointment request -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Submit Request</button>
                 </div>
             </form>
         </div>

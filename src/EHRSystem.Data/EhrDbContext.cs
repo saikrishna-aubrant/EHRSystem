@@ -15,7 +15,9 @@ namespace EHRSystem.Data
         public DbSet<Allergy> Allergies { get; set; }
         public DbSet<PatientVisit> PatientVisits { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
+        public DbSet<AppointmentSlot> AppointmentSlots { get; set; }
         public DbSet<TestResult> TestResults { get; set; }
+        public DbSet<AppointmentAudit> AppointmentAudits { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -157,6 +159,53 @@ namespace EHRSystem.Data
 
                 b.HasIndex(t => t.TestDate);
                 b.HasIndex(t => t.TestName);
+            });
+
+            builder.Entity<AppointmentSlot>(b =>
+            {
+                b.HasOne(a => a.Doctor)
+                 .WithMany()
+                 .HasForeignKey(a => a.DoctorId)
+                 .OnDelete(DeleteBehavior.NoAction);
+
+                b.HasOne(a => a.CreatedBy)
+                 .WithMany()
+                 .HasForeignKey(a => a.CreatedById)
+                 .OnDelete(DeleteBehavior.NoAction);
+
+                b.HasIndex(a => a.StartTime);
+                b.HasIndex(a => a.EndTime);
+                b.HasIndex(a => a.IsAvailable);
+            });
+
+            builder.Entity<AppointmentAudit>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                
+                entity.HasOne(e => e.Appointment)
+                    .WithMany(a => a.AuditTrail)
+                    .HasForeignKey(e => e.AppointmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.ModifiedBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.ModifiedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(e => e.Action)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.Reason)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.OldStatus)
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.NewStatus)
+                    .IsRequired()
+                    .HasMaxLength(50);
             });
         }
 

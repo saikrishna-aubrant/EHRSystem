@@ -4,6 +4,7 @@ using EHRSystem.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EHRSystem.Data.Migrations
 {
     [DbContext(typeof(EhrDbContext))]
-    partial class EhrDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250208154848_FixAppointmentSlotRelationships")]
+    partial class FixAppointmentSlotRelationships
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -298,59 +301,6 @@ namespace EHRSystem.Data.Migrations
                     b.ToTable("Appointments");
                 });
 
-            modelBuilder.Entity("EHRSystem.Core.Models.AppointmentAudit", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("AppointmentId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedById")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(85)");
-
-                    b.Property<DateTime?>("NewDateTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("NewStatus")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime?>("OldDateTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("OldStatus")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AppointmentId");
-
-                    b.HasIndex("ModifiedById");
-
-                    b.ToTable("AppointmentAudits");
-                });
-
             modelBuilder.Entity("EHRSystem.Core.Models.AppointmentSlot", b =>
                 {
                     b.Property<int>("Id")
@@ -376,6 +326,10 @@ namespace EHRSystem.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(85)");
 
+                    b.Property<string>("DoctorId1")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(85)");
+
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("datetime2");
 
@@ -393,6 +347,8 @@ namespace EHRSystem.Data.Migrations
                     b.HasIndex("CreatedById");
 
                     b.HasIndex("DoctorId");
+
+                    b.HasIndex("DoctorId1");
 
                     b.HasIndex("EndTime");
 
@@ -788,25 +744,6 @@ namespace EHRSystem.Data.Migrations
                     b.Navigation("Patient");
                 });
 
-            modelBuilder.Entity("EHRSystem.Core.Models.AppointmentAudit", b =>
-                {
-                    b.HasOne("EHRSystem.Core.Models.Appointment", "Appointment")
-                        .WithMany("AuditTrail")
-                        .HasForeignKey("AppointmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EHRSystem.Core.Models.ApplicationUser", "ModifiedBy")
-                        .WithMany()
-                        .HasForeignKey("ModifiedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Appointment");
-
-                    b.Navigation("ModifiedBy");
-                });
-
             modelBuilder.Entity("EHRSystem.Core.Models.AppointmentSlot", b =>
                 {
                     b.HasOne("EHRSystem.Core.Models.ApplicationUser", "CreatedBy")
@@ -815,10 +752,16 @@ namespace EHRSystem.Data.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("EHRSystem.Core.Models.ApplicationUser", "Doctor")
+                    b.HasOne("EHRSystem.Core.Models.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("DoctorId")
                         .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("EHRSystem.Core.Models.ApplicationUser", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId1")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("CreatedBy");
@@ -979,11 +922,6 @@ namespace EHRSystem.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("EHRSystem.Core.Models.Appointment", b =>
-                {
-                    b.Navigation("AuditTrail");
                 });
 #pragma warning restore 612, 618
         }

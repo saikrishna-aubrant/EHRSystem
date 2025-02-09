@@ -1,0 +1,175 @@
+@using EHRSystem.Core.ViewModels
+@model List<AppointmentViewModel>
+@{
+    ViewData["Title"] = "Appointments";
+}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="mb-0">Appointments</h3>
+        @if (User.IsInRole("Patient"))
+        {
+            <a href="@Url.Action("Schedule", "Appointments")" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Request Appointment
+            </a>
+        }
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>@(User.IsInRole("Patient") ? "Doctor" : "Patient")</th>
+                        <th>Purpose</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var appointment in Model)
+                    {
+                        <tr>
+                            <td>@appointment.AppointmentDate.ToString("MMM dd, yyyy HH:mm")</td>
+                            <td>@(User.IsInRole("Patient") ? appointment.DoctorName : appointment.PatientName)</td>
+                            <td>@appointment.Purpose</td>
+                            <td>
+                                <span class="badge bg-@(appointment.Status.ToLower() switch {
+                                    "Requested" => "warning",
+                                    "Scheduled" => "success",
+                                    "Cancelled" => "danger",
+                                    _ => "secondary"
+                                })">@appointment.Status</span>
+                            </td>
+                            <td>
+                                @if (User.IsInRole("Doctor") || User.IsInRole("Admin"))
+                                {
+                                    @if (appointment.Status == "Requested")
+                                    {
+                                        <button class="btn btn-sm btn-success me-1" onclick="showConfirmModal(@appointment.Id)">
+                                            <i class="bi bi-check-circle"></i> Confirm
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="showCancelModal(@appointment.Id)">
+                                            <i class="bi bi-x-circle"></i> Cancel
+                                        </button>
+                                    }
+                                }
+                                else if (User.IsInRole("Patient"))
+                                {
+                                    @if (appointment.Status == "Requested" || appointment.Status == "Scheduled")
+                                    {
+                                        <button class="btn btn-sm btn-primary me-1" onclick="showRescheduleModal(@appointment.Id)">
+                                            <i class="bi bi-calendar"></i> Reschedule
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="showCancelModal(@appointment.Id)">
+                                            <i class="bi bi-x-circle"></i> Cancel
+                                        </button>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Appointment Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Appointment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="confirmForm" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <p>Are you sure you want to confirm this appointment?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-success">Confirm Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Appointment Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cancel Appointment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="cancelForm" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="cancelReason" class="form-label">Reason for Cancellation</label>
+                        <textarea id="cancelReason" name="reason" class="form-control" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-danger">Cancel Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reschedule Appointment Modal -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reschedule Appointment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="rescheduleForm" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newDateTime" class="form-label">New Date and Time</label>
+                        <input type="datetime-local" id="newDateTime" name="newDateTime" class="form-control" required
+                               min="@DateTime.Now.AddDays(1).ToString("yyyy-MM-ddTHH:mm")" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="rescheduleReason" class="form-label">Reason for Rescheduling</label>
+                        <textarea id="rescheduleReason" name="reason" class="form-control" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Reschedule Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function showConfirmModal(appointmentId) {
+            const form = document.getElementById('confirmForm');
+            form.action = `/Appointments/ConfirmAppointment/${appointmentId}`;
+            new bootstrap.Modal(document.getElementById('confirmModal')).show();
+        }
+
+        function showCancelModal(appointmentId) {
+            const form = document.getElementById('cancelForm');
+            form.action = `/Appointments/CancelAppointment/${appointmentId}`;
+            new bootstrap.Modal(document.getElementById('cancelModal')).show();
+        }
+
+        function showRescheduleModal(appointmentId) {
+            const form = document.getElementById('rescheduleForm');
+            form.action = `/Appointments/RescheduleAppointment/${appointmentId}`;
+            new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
+        }
+    </script>
+} 

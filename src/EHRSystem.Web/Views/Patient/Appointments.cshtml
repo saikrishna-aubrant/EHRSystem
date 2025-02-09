@@ -1,0 +1,194 @@
+@model List<AppointmentViewModel>
+@{
+    ViewData["Title"] = "My Appointments";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">My Appointments</h3>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#requestAppointmentModal">
+                            Request Appointment
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Request Appointment Modal -->
+<div class="modal fade" id="requestAppointmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="RequestAppointment" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">Request Appointment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="DoctorId" class="form-label">Select Doctor</label>
+                        <select name="DoctorId" id="DoctorId" class="form-select" required>
+                            <option value="">Choose a doctor...</option>
+                            @foreach (var doctor in ViewBag.Doctors)
+                            {
+                                <option value="@doctor.Id">Dr. @doctor.FirstName @doctor.LastName</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="PreferredDate" class="form-label">Preferred Date</label>
+                        <input type="date" name="PreferredDate" id="PreferredDate" class="form-control" required 
+                               min="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="Purpose" class="form-label">Purpose of Visit</label>
+                        <textarea name="Purpose" id="Purpose" class="form-control" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Appointment Details Modal -->
+<div class="modal fade" id="appointmentDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Appointment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <dl>
+                    <dt>Doctor</dt>
+                    <dd id="appointmentDoctor"></dd>
+                    <dt>Date & Time</dt>
+                    <dd id="appointmentDateTime"></dd>
+                    <dt>Status</dt>
+                    <dd id="appointmentStatus"></dd>
+                    <dt>Purpose</dt>
+                    <dd id="appointmentPurpose"></dd>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="cancelAppointment" style="display: none;">Cancel Appointment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
+    <style>
+        .fc-event {
+            cursor: pointer;
+        }
+        .fc-event.available {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+        .fc-event.requested {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #000;
+        }
+        .fc-event.confirmed {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .fc-event.cancelled {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                slotMinTime: '09:00:00',
+                slotMaxTime: '17:00:00',
+                slotDuration: '00:30:00',
+                allDaySlot: false,
+                events: @Json.Serialize(Model.Select(a => new
+                {
+                    id = a.Id,
+                    title = $"Dr. {a.DoctorName} - {a.Purpose}",
+                    start = a.AppointmentDate.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    end = a.AppointmentDate.AddMinutes(30).ToString("yyyy-MM-ddTHH:mm:ss"),
+                    className = a.Status.ToLower(),
+                    extendedProps = new
+                    {
+                        status = a.Status,
+                        doctor = a.DoctorName,
+                        purpose = a.Purpose
+                    }
+                })),
+                eventClick: function(info) {
+                    showAppointmentDetails(info.event);
+                },
+                eventDidMount: function(info) {
+                    info.el.title = `${info.event.extendedProps.doctor}\n${info.event.extendedProps.purpose}\nStatus: ${info.event.extendedProps.status}`;
+                }
+            });
+            calendar.render();
+        });
+
+        function showAppointmentDetails(event) {
+            const modal = new bootstrap.Modal(document.getElementById('appointmentDetailsModal'));
+            document.getElementById('appointmentDoctor').textContent = event.extendedProps.doctor;
+            document.getElementById('appointmentDateTime').textContent = event.start.toLocaleString();
+            document.getElementById('appointmentStatus').textContent = event.extendedProps.status;
+            document.getElementById('appointmentPurpose').textContent = event.extendedProps.purpose;
+            
+            const cancelButton = document.getElementById('cancelAppointment');
+            if (event.extendedProps.status === 'Requested' || event.extendedProps.status === 'Confirmed') {
+                cancelButton.style.display = 'block';
+                cancelButton.onclick = () => cancelAppointment(event.id);
+            } else {
+                cancelButton.style.display = 'none';
+            }
+            
+            modal.show();
+        }
+
+        function cancelAppointment(appointmentId) {
+            if (confirm('Are you sure you want to cancel this appointment?')) {
+                fetch(`/Patient/CancelAppointment/${appointmentId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }).then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        alert('Failed to cancel appointment');
+                    }
+                });
+            }
+        }
+    </script>
+} 

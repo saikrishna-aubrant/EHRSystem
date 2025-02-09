@@ -1,6 +1,7 @@
 // Add these at the top
 using EHRSystem.Core.Models;
 using EHRSystem.Data;  // Change back to Data
+using EHRSystem.Data.Services;  // Add this for AppointmentService
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using EHRSystem.Core;
@@ -31,6 +32,9 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 })
 .AddEntityFrameworkStores<EhrDbContext>()
 .AddDefaultTokenProviders();
+
+// Register AppointmentService
+builder.Services.AddScoped<AppointmentService>();
 
 // Update DbContext registration
 builder.Services.AddDbContext<EhrDbContext>(options =>
