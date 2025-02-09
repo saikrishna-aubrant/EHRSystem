@@ -13,6 +13,7 @@
     
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
@@ -28,6 +29,12 @@
                 <ul class="navbar-nav ms-auto">
                     @if (User.Identity?.IsAuthenticated == true)
                     {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Appointments" asp-action="Index">
+                                <i class="bi bi-calendar-event"></i> Appointments
+                            </a>
+                        </li>
+
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item">

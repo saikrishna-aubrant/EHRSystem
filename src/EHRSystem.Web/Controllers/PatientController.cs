@@ -7,6 +7,8 @@ using EHRSystem.Core.Models;
 using EHRSystem.Data;
 using EHRSystem.Data.Services;
 using System.Linq.Dynamic.Core;
+using System;
+using System.Threading.Tasks;
 
 namespace EHRSystem.Web.Controllers
 {
@@ -344,67 +346,83 @@ namespace EHRSystem.Web.Controllers
         [Authorize]
         public async Task<IActionResult> Dashboard()
         {
-            var currentUser = await _userManager.GetUserAsync(User);
-            if (currentUser == null)
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
             {
-                return Challenge();
+                return RedirectToAction("Login", "Account");
             }
 
-            // US-PAT-04.1: View personal and medical information
+            // Get upcoming appointments
+            var upcomingAppointments = await _context.Appointments
+                .Include(a => a.Doctor)
+                .Where(a => a.PatientId == user.Id && a.AppointmentDate >= DateTime.Today)
+                .OrderBy(a => a.AppointmentDate)
+                .Take(5)
+                .Select(a => new AppointmentViewModel
+                {
+                    Id = a.Id,
+                    AppointmentDate = a.AppointmentDate,
+                    Purpose = a.Purpose,
+                    DoctorName = $"Dr. {a.Doctor.FirstName} {a.Doctor.LastName}",
+                    Status = a.Status
+                })
+                .ToListAsync();
+
+            // Get recent visits
+            var recentVisits = await _context.PatientVisits
+                .Include(v => v.Doctor)
+                .Where(v => v.PatientId == user.Id)
+                .OrderByDescending(v => v.VisitDate)
+                .Take(5)
+                .Select(v => new PatientVisitViewModel
+                {
+                    Id = v.Id,
+                    VisitDate = v.VisitDate,
+                    Reason = v.Reason,
+                    Diagnosis = v.Diagnosis,
+                    DoctorName = $"Dr. {v.Doctor.FirstName} {v.Doctor.LastName}"
+                })
+                .ToListAsync();
+
+            // Get test results
+            var testResults = await _context.TestResults
+                .Include(t => t.OrderedBy)
+                .Where(t => t.PatientId == user.Id)
+                .OrderByDescending(t => t.TestDate)
+                .Take(5)
+                .Select(t => new TestResultViewModel
+                {
+                    Id = t.Id,
+                    TestName = t.TestName,
+                    TestDate = t.TestDate,
+                    Result = t.Result,
+                    NormalRange = t.NormalRange,
+                    Status = t.Status,
+                    OrderedBy = $"Dr. {t.OrderedBy.FirstName} {t.OrderedBy.LastName}"
+                })
+                .ToListAsync();
+
             var viewModel = new PatientDashboardViewModel
             {
-                // Personal Information
-                Id = currentUser.Id,
-                FullName = $"{currentUser.FirstName} {currentUser.LastName}",
-                MRN = currentUser.MRN,
-                DateOfBirth = currentUser.DateOfBirth,
-                Email = currentUser.Email,
-                PhoneNumber = currentUser.PhoneNumber,
-
-                // Medical Information
-                UpcomingAppointments = await _context.Appointments
-                    .Where(a => a.PatientId == currentUser.Id && a.AppointmentDate > DateTime.Now)
-                    .OrderBy(a => a.AppointmentDate)
-                    .Select(a => new AppointmentViewModel
-                    {
-                        Id = a.Id,
-                        AppointmentDate = a.AppointmentDate,
-                        Purpose = a.Purpose,
-                        DoctorName = a.Doctor.FirstName + " " + a.Doctor.LastName,
-                        Status = a.Status
-                    })
-                    .ToListAsync(),
-
-                RecentVisits = await _context.PatientVisits
-                    .Where(v => v.PatientId == currentUser.Id)
-                    .OrderByDescending(v => v.VisitDate)
-                    .Take(5)
-                    .Select(v => new PatientVisitViewModel
-                    {
-                        Id = v.Id,
-                        VisitDate = v.VisitDate,
-                        Reason = v.Reason,
-                        Diagnosis = v.Diagnosis,
-                        Treatment = v.Treatment,
-                        DoctorName = v.Doctor.FirstName + " " + v.Doctor.LastName
-                    })
-                    .ToListAsync(),
-
-                TestResults = await _context.TestResults
-                    .Where(t => t.PatientId == currentUser.Id)
-                    .OrderByDescending(t => t.TestDate)
-                    .Take(10)
-                    .Select(t => new TestResultViewModel
-                    {
-                        Id = t.Id,
-                        TestName = t.TestName,
-                        TestDate = t.TestDate,
-                        Result = t.Result,
-                        NormalRange = t.NormalRange,
-                        Status = t.Status,
-                        OrderedBy = t.OrderedBy.FirstName + " " + t.OrderedBy.LastName
-                    })
-                    .ToListAsync()
+                Id = user.Id,
+                FirstName = user.FirstName ?? string.Empty,
+                LastName = user.LastName ?? string.Empty,
+                FullName = $"{user.FirstName} {user.LastName}",
+                MRN = user.MRN ?? string.Empty,
+                Email = user.Email ?? string.Empty,
+                PhoneNumber = user.PhoneNumber ?? string.Empty,
+                Address = user.Address ?? string.Empty,
+                City = user.City ?? string.Empty,
+                State = user.State ?? string.Empty,
+                ZipCode = user.ZipCode ?? string.Empty,
+                EmergencyContactName = user.EmergencyContactName ?? string.Empty,
+                EmergencyContactPhone = user.EmergencyContactPhone ?? string.Empty,
+                EmergencyContactRelation = user.EmergencyContactRelation ?? string.Empty,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender ?? string.Empty,
+                UpcomingAppointments = upcomingAppointments,
+                RecentVisits = recentVisits,
+                TestResults = testResults
             };
 
             return View(viewModel);
@@ -415,34 +433,38 @@ namespace EHRSystem.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateContactInfo(UpdateContactInfoViewModel model)
         {
+            if (!ModelState.IsValid)
+            {
+                return RedirectToAction(nameof(Dashboard));
+            }
+
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
+            user.PhoneNumber = model.PhoneNumber;
+            user.EmergencyContactName = model.EmergencyContactName;
+            user.EmergencyContactPhone = model.EmergencyContactPhone;
+            user.EmergencyContactRelation = model.EmergencyContactRelation;
+            user.Address = model.Address;
+            user.City = model.City;
+            user.State = model.State;
+            user.ZipCode = model.ZipCode;
+            user.LastModifiedAt = DateTime.UtcNow;
+            user.LastModifiedById = user.Id;
+
+            var result = await _userManager.UpdateAsync(user);
+            if (result.Succeeded)
             {
-                user.PhoneNumber = model.PhoneNumber;
-                user.Address = model.Address;
-                user.City = model.City;
-                user.State = model.State;
-                user.ZipCode = model.ZipCode;
-                user.EmergencyContactName = model.EmergencyContactName;
-                user.EmergencyContactPhone = model.EmergencyContactPhone;
-                user.EmergencyContactRelation = model.EmergencyContactRelation;
+                TempData["SuccessMessage"] = "Contact information updated successfully.";
+                return RedirectToAction(nameof(Dashboard));
+            }
 
-                var result = await _userManager.UpdateAsync(user);
-                if (result.Succeeded)
-                {
-                    TempData["SuccessMessage"] = "Contact information updated successfully.";
-                    return RedirectToAction(nameof(Dashboard));
-                }
-
-                foreach (var error in result.Errors)
-                {
-                    ModelState.AddModelError("", error.Description);
-                }
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError("", error.Description);
             }
 
             return RedirectToAction(nameof(Dashboard));
@@ -453,32 +475,95 @@ namespace EHRSystem.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RequestAppointment(AppointmentRequestViewModel model)
         {
+            if (!ModelState.IsValid)
+            {
+                return RedirectToAction(nameof(Dashboard));
+            }
+
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
+            var appointment = new Appointment
             {
-                var appointment = new Appointment
-                {
-                    PatientId = user.Id,
-                    DoctorId = model.DoctorId,
-                    AppointmentDate = model.PreferredDate,
-                    Purpose = model.Purpose,
-                    Status = "Requested",
-                    CreatedAt = DateTime.UtcNow
-                };
+                PatientId = user.Id,
+                DoctorId = model.DoctorId,
+                AppointmentDate = model.PreferredDate,
+                Purpose = model.Purpose,
+                Status = "Requested",
+                CreatedAt = DateTime.UtcNow
+            };
 
-                _context.Appointments.Add(appointment);
-                await _context.SaveChangesAsync();
+            _context.Appointments.Add(appointment);
+            await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "Appointment request submitted successfully.";
-                return RedirectToAction(nameof(Dashboard));
+            TempData["SuccessMessage"] = "Appointment request submitted successfully.";
+            return RedirectToAction(nameof(Dashboard));
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> Appointments()
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+            {
+                return NotFound();
             }
 
-            return RedirectToAction(nameof(Dashboard));
+            // Get doctors for appointment requests
+            var doctors = await _userManager.GetUsersInRoleAsync("Doctor");
+            ViewBag.Doctors = doctors;
+
+            // Get all appointments for the calendar
+            var appointments = await _context.Appointments
+                .Include(a => a.Doctor)
+                .Where(a => a.PatientId == currentUser.Id)
+                .OrderBy(a => a.AppointmentDate)
+                .Select(a => new AppointmentViewModel
+                {
+                    Id = a.Id,
+                    AppointmentDate = a.AppointmentDate,
+                    Purpose = a.Purpose,
+                    DoctorName = $"Dr. {a.Doctor.FirstName} {a.Doctor.LastName}",
+                    Status = a.Status
+                })
+                .ToListAsync();
+
+            return View(appointments);
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> CancelAppointment(int id)
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+            {
+                return NotFound();
+            }
+
+            var appointment = await _context.Appointments
+                .FirstOrDefaultAsync(a => a.Id == id && a.PatientId == currentUser.Id);
+
+            if (appointment == null)
+            {
+                return NotFound();
+            }
+
+            if (appointment.AppointmentDate <= DateTime.Now.AddHours(24))
+            {
+                return BadRequest("Appointments can only be cancelled at least 24 hours in advance.");
+            }
+
+            appointment.Status = "Cancelled";
+            appointment.LastModifiedById = currentUser.Id;
+            appointment.LastModifiedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return Ok();
         }
     }
 } 

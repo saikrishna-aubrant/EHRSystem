@@ -1,0 +1,73 @@
+@model AppointmentConfirmationViewModel
+@{
+    ViewData["Title"] = "Appointment Confirmation";
+}
+
+<!-- [REQ: US-APT-01.22] Appointment confirmation display -->
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h3 class="mb-0">
+            <i class="bi bi-check-circle me-2"></i>
+            Appointment Scheduled Successfully
+        </h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-success">
+            <h4>Reference Number: @Model.ReferenceNumber</h4>
+            <p class="mb-0">Please keep this number for your records.</p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Appointment Details</h5>
+                <dl class="row">
+                    <dt class="col-sm-4">Doctor</dt>
+                    <dd class="col-sm-8">@Model.DoctorName</dd>
+
+                    <dt class="col-sm-4">Date</dt>
+                    <dd class="col-sm-8">@Model.AppointmentDate.ToLongDateString()</dd>
+
+                    <dt class="col-sm-4">Time</dt>
+                    <dd class="col-sm-8">@Model.TimeSlot</dd>
+                </dl>
+            </div>
+            <div class="col-md-6">
+                <h5>Patient Information</h5>
+                <dl class="row">
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">@Model.PatientName</dd>
+
+                    <dt class="col-sm-4">Reason</dt>
+                    <dd class="col-sm-8">@Model.ReasonForVisit</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-3">
+            <h5>Important Information:</h5>
+            <ul class="mb-0">
+                <li>Please arrive 15 minutes before your appointment time</li>
+                <li>Bring any relevant medical records or test results</li>
+                <li>If you need to cancel or reschedule, please do so at least 24 hours in advance</li>
+                <li>You will receive a reminder 24 hours before your appointment</li>
+            </ul>
+        </div>
+
+        <div class="mt-4">
+            <a asp-action="Index" class="btn btn-primary">Back to Appointments</a>
+            <a href="#" class="btn btn-outline-primary" onclick="window.print()">
+                <i class="bi bi-printer"></i> Print Confirmation
+            </a>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        @@media print {
+            .btn { display: none; }
+            .card { border: none; }
+            .card-header { background-color: #fff !important; color: #000 !important; }
+        }
+    </style>
+} 

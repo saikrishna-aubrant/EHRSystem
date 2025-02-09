@@ -9,12 +9,27 @@ namespace EHRSystem.Core.ViewModels
     public class PatientDashboardViewModel
     {
         public string Id { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
         public string FullName { get; set; }
         public string MRN { get; set; }
         public DateTime DateOfBirth { get; set; }
+        public string Gender { get; set; }
         public string Email { get; set; }
         public string PhoneNumber { get; set; }
         
+        // Address Information
+        public string Address { get; set; }
+        public string City { get; set; }
+        public string State { get; set; }
+        public string ZipCode { get; set; }
+        
+        // Emergency Contact Information
+        public string EmergencyContactName { get; set; }
+        public string EmergencyContactPhone { get; set; }
+        public string EmergencyContactRelation { get; set; }
+        
+        // Medical Information
         public List<AppointmentViewModel> UpcomingAppointments { get; set; } = new();
         public List<PatientVisitViewModel> RecentVisits { get; set; } = new();
         public List<TestResultViewModel> TestResults { get; set; } = new();
@@ -26,6 +41,7 @@ namespace EHRSystem.Core.ViewModels
         public DateTime AppointmentDate { get; set; }
         public string Purpose { get; set; }
         public string DoctorName { get; set; }
+        public string PatientName { get; set; }
         public string Status { get; set; }
     }
 
