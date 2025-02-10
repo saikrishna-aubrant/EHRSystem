@@ -7,17 +7,20 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace EHRSystem.Web.Controllers
 {
+    // [REQ: US-AUTH-02] Account Controller - Handles user authentication and account management
     public class AccountController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
 
+        // [REQ: US-AUTH-02.1] Constructor with required services
         public AccountController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
         {
             _userManager = userManager;
             _signInManager = signInManager;
         }
 
+        // [REQ: US-AUTH-01.1] Admin panel for user role management
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AdminPanel()
         {
@@ -38,6 +41,7 @@ namespace EHRSystem.Web.Controllers
             return View(userRoles);
         }
 
+        // [REQ: US-AUTH-02.2] User registration
         [HttpGet]
         [AllowAnonymous]
         public IActionResult Register()
@@ -52,6 +56,7 @@ namespace EHRSystem.Web.Controllers
             return View(model);
         }
 
+        // [REQ: US-AUTH-01.2] Admin user registration with role assignment
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public IActionResult AdminRegister()
@@ -67,6 +72,7 @@ namespace EHRSystem.Web.Controllers
             return View("Register", model);
         }
 
+        // [REQ: US-AUTH-02.3] Process user registration
         [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> Register(RegisterViewModel model)
@@ -150,6 +156,7 @@ namespace EHRSystem.Web.Controllers
             return $"{prefix}{timestamp}{random}";
         }
 
+        // [REQ: US-AUTH-01.3] Change user role
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ChangeRole(string userId, string newRole)
@@ -164,6 +171,7 @@ namespace EHRSystem.Web.Controllers
             return RedirectToAction("AdminPanel");
         }
 
+        // [REQ: US-AUTH-02.4] User login page
         [HttpGet]
         public IActionResult Login(string returnUrl = null)
         {
@@ -171,6 +179,7 @@ namespace EHRSystem.Web.Controllers
             return View();
         }
 
+        // [REQ: US-AUTH-02.5] User logout
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
@@ -179,7 +188,7 @@ namespace EHRSystem.Web.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        // US-AUTH-02: Login functionality
+        // [REQ: US-AUTH-02.6] Process user login
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
@@ -232,13 +241,14 @@ namespace EHRSystem.Web.Controllers
             return View(model);
         }
 
+        // [REQ: US-AUTH-03.1] Password reset request
         [HttpGet]
         public IActionResult ForgotPassword()
         {
             return View();
         }
 
-        // US-AUTH-03: Password reset flow
+        // [REQ: US-AUTH-03.2] Process password reset request
         [HttpPost]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
@@ -255,6 +265,7 @@ namespace EHRSystem.Web.Controllers
             return View(model);
         }
 
+        // [REQ: US-AUTH-03.3] Reset password form
         [HttpGet]
         public IActionResult ResetPassword(string email, string token)
         {
@@ -266,6 +277,7 @@ namespace EHRSystem.Web.Controllers
             return View(new ResetPasswordViewModel { Email = email, Token = token });
         }
 
+        // [REQ: US-AUTH-03.4] Process password reset
         [HttpPost]
         public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
         {
@@ -289,11 +301,13 @@ namespace EHRSystem.Web.Controllers
             return View(model);
         }
 
+        // [REQ: US-AUTH-03.5] Password reset confirmation
         public IActionResult ResetPasswordConfirmation()
         {
             return View();
         }
 
+        // [REQ: US-AUTH-02.7] Error handling for authentication
         private void AddErrors(IdentityResult result)
         {
             foreach (var error in result.Errors)
@@ -302,6 +316,7 @@ namespace EHRSystem.Web.Controllers
             }
         }
 
+        // [REQ: US-PAT-03.1] User profile management
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> Profile()
@@ -326,6 +341,7 @@ namespace EHRSystem.Web.Controllers
             return View(model);
         }
 
+        // [REQ: US-PAT-03.2] Update user profile
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> Profile(ProfileViewModel model)
@@ -361,6 +377,7 @@ namespace EHRSystem.Web.Controllers
             return View(model);
         }
 
+        // [REQ: US-AUTH-02.8] Access denied handler
         [HttpGet]
         [AllowAnonymous]
         public IActionResult AccessDenied(string returnUrl = null)

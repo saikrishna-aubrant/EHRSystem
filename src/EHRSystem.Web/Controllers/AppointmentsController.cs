@@ -12,7 +12,7 @@ using EHRSystem.Data.Services;
 
 namespace EHRSystem.Web.Controllers
 {
-    // [REQ: US-APT-01] Controller for appointment management
+    // [REQ: US-APT-01] Appointment Management Controller - Handles all appointment-related operations
     [Authorize]
     public class AppointmentsController : Controller
     {
@@ -30,6 +30,7 @@ namespace EHRSystem.Web.Controllers
             _context = context;
         }
 
+        // [REQ: US-APT-02] Patient Appointment Scheduling - Allows patients to schedule new appointments
         [HttpGet]
         public async Task<IActionResult> Schedule()
         {
@@ -52,6 +53,7 @@ namespace EHRSystem.Web.Controllers
             return View(viewModel);
         }
 
+        // [REQ: US-APT-03] Time Slot Management - Retrieves available time slots for appointment scheduling
         [HttpGet]
         public async Task<IActionResult> GetTimeSlots(string doctorId, DateTime date)
         {
@@ -78,6 +80,7 @@ namespace EHRSystem.Web.Controllers
             }
         }
 
+        // [REQ: US-APT-02.1] Appointment Creation - Processes new appointment requests
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Schedule(AppointmentScheduleViewModel model)
@@ -151,6 +154,7 @@ namespace EHRSystem.Web.Controllers
             }
         }
 
+        // [REQ: US-APT-04] Appointment List View - Shows appointments based on user role
         [HttpGet]
         public async Task<IActionResult> Index()
         {
@@ -182,6 +186,7 @@ namespace EHRSystem.Web.Controllers
             return View(appointments);
         }
 
+        // [REQ: US-APT-05] Appointment Cancellation - Handles appointment cancellation requests
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Cancel(int id)
@@ -217,6 +222,7 @@ namespace EHRSystem.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // [REQ: US-APT-06] Appointment Rescheduling - Handles appointment rescheduling requests
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RescheduleAppointment(int id, DateTime newDateTime, string reason)
@@ -289,6 +295,7 @@ namespace EHRSystem.Web.Controllers
             }
         }
 
+        // [REQ: US-APT-07] Appointment Confirmation - Allows doctors to confirm appointment requests
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmAppointment(int id)
