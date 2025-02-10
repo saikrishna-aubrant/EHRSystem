@@ -9,40 +9,44 @@
         <h3 class="mb-0">Schedule Appointment</h3>
     </div>
     <div class="card-body">
-        <div id="errorMessage" class="alert alert-danger" style="display: none;"></div>
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+        }
         <form asp-action="Schedule" method="post" id="appointmentForm">
+            @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="PatientId" />
-            <input type="hidden" asp-for="PatientName" />
 
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <label asp-for="DoctorId" class="form-label"></label>
+                    <label asp-for="DoctorId" class="form-label">Select Doctor</label>
                     <select asp-for="DoctorId" asp-items="Model.DoctorList" class="form-select" required>
-                        <option value="">Select Doctor</option>
+                        <option value="">Choose a doctor...</option>
                     </select>
                     <span asp-validation-for="DoctorId" class="text-danger"></span>
                 </div>
 
                 <div class="col-md-6">
-                    <label asp-for="AppointmentDate" class="form-label"></label>
-                    <input asp-for="AppointmentDate" class="form-control" type="date" min="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")" required />
+                    <label asp-for="AppointmentDate" class="form-label">Appointment Date</label>
+                    <input asp-for="AppointmentDate" class="form-control" type="date" 
+                           min="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")" required />
                     <span asp-validation-for="AppointmentDate" class="text-danger"></span>
                 </div>
             </div>
 
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <label asp-for="TimeSlotId" class="form-label"></label>
+                    <label asp-for="TimeSlotId" class="form-label">Time Slot</label>
                     <select asp-for="TimeSlotId" class="form-select" required>
-                        <option value="">Select Time Slot</option>
+                        <option value="">Select a date and doctor first</option>
                     </select>
                     <span asp-validation-for="TimeSlotId" class="text-danger"></span>
                 </div>
 
                 <div class="col-md-6">
-                    <label asp-for="ReasonForVisit" class="form-label"></label>
-                    <textarea asp-for="ReasonForVisit" class="form-control" rows="3" required></textarea>
+                    <label asp-for="ReasonForVisit" class="form-label">Reason for Visit</label>
+                    <textarea asp-for="ReasonForVisit" class="form-control" rows="3" required 
+                              maxlength="500" placeholder="Please describe the reason for your visit"></textarea>
                     <span asp-validation-for="ReasonForVisit" class="text-danger"></span>
                 </div>
             </div>
@@ -53,12 +57,12 @@
                     <li>Appointments must be scheduled at least 1 day in advance</li>
                     <li>Available hours: 9:00 AM - 5:00 PM</li>
                     <li>Duration: 30 minutes</li>
-                    <li>15-minute buffer between appointments</li>
+                    <li>Please arrive 15 minutes before your appointment</li>
                 </ul>
             </div>
 
             <div class="mt-3">
-                <button type="submit" class="btn btn-primary" id="submitButton">Schedule Appointment</button>
+                <button type="submit" class="btn btn-primary">Schedule Appointment</button>
                 <a asp-action="Index" class="btn btn-secondary">Back to Appointments</a>
             </div>
         </form>
@@ -68,74 +72,91 @@
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
     <script>
-        // [REQ: US-APT-01.21] Dynamic time slot loading
         $(document).ready(function() {
-            function loadTimeSlots() {
+            function updateTimeSlots() {
                 var doctorId = $("#DoctorId").val();
                 var date = $("#AppointmentDate").val();
                 var timeSlotSelect = $("#TimeSlotId");
                 
+                // Reset time slots
                 timeSlotSelect.empty();
                 timeSlotSelect.append($('<option>', {
                     value: '',
                     text: 'Select Time Slot'
                 }));
                 
-                if (doctorId && date) {
-                    $.get('@Url.Action("GetTimeSlots")', { doctorId: doctorId, date: date })
-                        .done(function(data) {
-                            if (data && data.length > 0) {
-                                $.each(data, function(i, item) {
-                                    timeSlotSelect.append($('<option>', {
-                                        value: item.value,
-                                        text: item.text
-                                    }));
-                                });
-                            } else {
-                                timeSlotSelect.append($('<option>', {
-                                    value: '',
-                                    text: 'No available slots for this date'
-                                }));
-                            }
-                        })
-                        .fail(function() {
-                            $("#errorMessage").text("Failed to load time slots. Please try again.").show();
-                        });
+                if (!doctorId || !date) {
+                    timeSlotSelect.append($('<option>', {
+                        value: '',
+                        text: 'Select a date and doctor first'
+                    }));
+                    return;
                 }
-            }
-
-            $("#DoctorId, #AppointmentDate").change(loadTimeSlots);
-            
-            if ($("#DoctorId").val()) {
-                loadTimeSlots();
-            }
-
-            $("#appointmentForm").on("submit", function(e) {
-                e.preventDefault();
-                var submitButton = $("#submitButton");
-                submitButton.prop('disabled', true);
-                $("#errorMessage").hide();
-
-                $.ajax({
-                    url: $(this).attr('action'),
-                    method: 'POST',
-                    data: $(this).serialize(),
-                    success: function(response) {
-                        if (response.redirectUrl) {
-                            window.location.href = response.redirectUrl;
-                        } else {
-                            window.location.href = '@Url.Action("Calendar", "Appointments")';
-                        }
-                    },
-                    error: function(xhr) {
-                        submitButton.prop('disabled', false);
-                        var errorMessage = "Failed to request appointment. Please try again.";
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        $("#errorMessage").text(errorMessage).show();
+                
+                // Show loading state
+                timeSlotSelect.prop('disabled', true);
+                timeSlotSelect.empty();
+                timeSlotSelect.append($('<option>', {
+                    value: '',
+                    text: 'Loading time slots...'
+                }));
+                
+                // Fetch available time slots
+                $.get('@Url.Action("GetTimeSlots")', {
+                    doctorId: doctorId,
+                    date: date
+                })
+                .done(function(response) {
+                    timeSlotSelect.empty();
+                    timeSlotSelect.append($('<option>', {
+                        value: '',
+                        text: 'Select Time Slot'
+                    }));
+                    
+                    if (response.message) {
+                        timeSlotSelect.append($('<option>', {
+                            value: '',
+                            text: response.message
+                        }));
+                    } else if (response && response.length > 0) {
+                        response.forEach(function(slot) {
+                            timeSlotSelect.append($('<option>', {
+                                value: slot.id,
+                                text: slot.text
+                            }));
+                        });
+                    } else {
+                        timeSlotSelect.append($('<option>', {
+                            value: '',
+                            text: 'No available slots for this date'
+                        }));
                     }
+                })
+                .fail(function(xhr) {
+                    timeSlotSelect.empty();
+                    timeSlotSelect.append($('<option>', {
+                        value: '',
+                        text: 'Error: ' + (xhr.responseText || 'Failed to load time slots')
+                    }));
+                    console.error('Error loading time slots:', xhr);
+                })
+                .always(function() {
+                    timeSlotSelect.prop('disabled', false);
                 });
+            }
+
+            // Update time slots when doctor or date changes
+            $("#DoctorId, #AppointmentDate").change(updateTimeSlots);
+            
+            // Form validation
+            $("#appointmentForm").submit(function(e) {
+                var timeSlot = $("#TimeSlotId").val();
+                if (!timeSlot) {
+                    e.preventDefault();
+                    alert("Please select a time slot");
+                    return false;
+                }
+                return true;
             });
         });
     </script>

@@ -31,122 +31,7 @@ namespace EHRSystem.Web.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index()
-        {
-            var currentUser = await _userManager.GetUserAsync(User);
-            if (currentUser == null)
-                return RedirectToAction("Login", "Account");
-
-            var userRoles = await _userManager.GetRolesAsync(currentUser);
-            var role = userRoles.FirstOrDefault();
-
-            var appointmentsQuery = role switch
-            {
-                "Admin" => _context.Appointments,
-                "Doctor" => _context.Appointments.Where(a => a.DoctorId == currentUser.Id),
-                "Patient" => _context.Appointments.Where(a => a.PatientId == currentUser.Id),
-                _ => _context.Appointments.Where(a => 1 == 0) // Empty set
-            };
-
-            var appointments = await appointmentsQuery
-                .Include(a => a.Doctor)
-                .Include(a => a.Patient)
-                .OrderByDescending(a => a.AppointmentDate)
-                .Select(a => new AppointmentViewModel
-                {
-                    Id = a.Id,
-                    AppointmentDate = a.AppointmentDate,
-                    Purpose = a.Purpose,
-                    DoctorName = $"Dr. {a.Doctor.FirstName} {a.Doctor.LastName}",
-                    PatientName = $"{a.Patient.FirstName} {a.Patient.LastName}",
-                    Status = a.Status
-                })
-                .ToListAsync();
-
-            if (User.IsInRole("Patient"))
-            {
-                var doctors = await _userManager.GetUsersInRoleAsync("Doctor");
-                ViewBag.Doctors = doctors.Select(d => new { Id = d.Id, Name = $"Dr. {d.FirstName} {d.LastName}" });
-            }
-
-            return View(appointments);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ConfirmAppointment(int id)
-        {
-            var currentUser = await _userManager.GetUserAsync(User);
-            if (currentUser == null)
-                return NotFound();
-
-            if (!User.IsInRole("Doctor") && !User.IsInRole("Admin"))
-                return Forbid();
-
-            var appointment = await _context.Appointments
-                .FirstOrDefaultAsync(a => a.Id == id && (a.DoctorId == currentUser.Id || User.IsInRole("Admin")));
-
-            if (appointment == null)
-                return NotFound();
-
-            var success = await _appointmentService.ConfirmAppointment(id, currentUser.Id);
-            if (!success)
-                return BadRequest("Failed to confirm appointment");
-
-            return RedirectToAction(nameof(Index));
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CancelAppointment(int id, string reason)
-        {
-            var currentUser = await _userManager.GetUserAsync(User);
-            if (currentUser == null)
-                return NotFound();
-
-            var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.Id == id);
-            if (appointment == null)
-                return NotFound();
-
-            // Check if user has permission to cancel this appointment
-            if (!User.IsInRole("Admin") && 
-                appointment.DoctorId != currentUser.Id && 
-                appointment.PatientId != currentUser.Id)
-                return Forbid();
-
-            var success = await _appointmentService.CancelAppointment(id, currentUser.Id, reason);
-            if (!success)
-                return BadRequest("Failed to cancel appointment");
-
-            return RedirectToAction(nameof(Index));
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RescheduleAppointment(int id, DateTime newDateTime, string reason)
-        {
-            var currentUser = await _userManager.GetUserAsync(User);
-            if (currentUser == null)
-                return NotFound();
-
-            var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.Id == id);
-            if (appointment == null)
-                return NotFound();
-
-            // Only allow patients to reschedule their own appointments
-            if (!User.IsInRole("Admin") && appointment.PatientId != currentUser.Id)
-                return Forbid();
-
-            var success = await _appointmentService.RescheduleAppointment(id, newDateTime, currentUser.Id, reason);
-            if (!success)
-                return BadRequest("Failed to reschedule appointment");
-
-            return RedirectToAction(nameof(Index));
-        }
-
-        // [REQ: US-APT-01.14] Schedule appointment form
-        [HttpGet]
-        public async Task<IActionResult> Schedule(string doctorId = null)
+        public async Task<IActionResult> Schedule()
         {
             if (!User.IsInRole("Patient"))
                 return Forbid();
@@ -161,33 +46,38 @@ namespace EHRSystem.Web.Controllers
                     Value = d.Id,
                     Text = $"Dr. {d.FirstName} {d.LastName}"
                 }).ToList(),
-                DoctorId = doctorId,
-                AppointmentDate = DateTime.Today.AddDays(1),
-                PatientId = currentUser.Id,
-                PatientName = $"{currentUser.FirstName} {currentUser.LastName}"
+                AppointmentDate = DateTime.Today.AddDays(1)
             };
 
             return View(viewModel);
         }
 
-        // [REQ: US-APT-01.15] Get available time slots
         [HttpGet]
         public async Task<IActionResult> GetTimeSlots(string doctorId, DateTime date)
         {
-            if (!User.Identity.IsAuthenticated)
-                return Forbid();
+            if (string.IsNullOrEmpty(doctorId) || date == default)
+                return BadRequest();
 
-            var slots = await _appointmentService.GetAvailableSlots(doctorId, date);
-            var timeSlots = slots.Select(s => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+            try
             {
-                Value = s.Id.ToString(),
-                Text = $"{s.StartTime:HH:mm} - {s.EndTime:HH:mm}"
-            });
+                // Get available slots using the service
+                var slots = await _appointmentService.GetAvailableSlots(doctorId, date);
 
-            return Json(timeSlots);
+                // Map to response format
+                var slotList = slots.Select(s => new
+                {
+                    id = s.Id,
+                    text = $"{s.StartTime:HH:mm} - {s.EndTime:HH:mm}"
+                }).ToList();
+
+                return Json(slotList);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest("Error loading time slots: " + ex.Message);
+            }
         }
 
-        // [REQ: US-APT-01.16] Create appointment
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Schedule(AppointmentScheduleViewModel model)
@@ -195,44 +85,252 @@ namespace EHRSystem.Web.Controllers
             if (!User.IsInRole("Patient"))
                 return Forbid();
 
-            if (!ModelState.IsValid)
-                return View(model);
-
             try
             {
-                var slot = await _context.AppointmentSlots.FindAsync(int.Parse(model.TimeSlotId));
-                if (slot == null || !slot.IsAvailable)
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser == null)
                 {
-                    ModelState.AddModelError("", "Selected time slot is no longer available");
-                    return View(model);
+                    TempData["ErrorMessage"] = "User not found";
+                    return RedirectToAction(nameof(Schedule));
                 }
 
+                if (!ModelState.IsValid)
+                {
+                    var errors = string.Join("; ", ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage));
+                    TempData["ErrorMessage"] = $"Please fill in all required fields: {errors}";
+                    return RedirectToAction(nameof(Schedule));
+                }
+
+                int slotId;
+                if (!int.TryParse(model.TimeSlotId, out slotId))
+                {
+                    TempData["ErrorMessage"] = "Invalid time slot format";
+                    return RedirectToAction(nameof(Schedule));
+                }
+
+                // Check if the slot is still available
+                if (!await _appointmentService.IsSlotAvailable(slotId, model.DoctorId, model.AppointmentDate))
+                {
+                    TempData["ErrorMessage"] = "The selected time slot is no longer available. Please choose another slot.";
+                    return RedirectToAction(nameof(Schedule));
+                }
+
+                // Create the appointment using the service
                 var appointment = await _appointmentService.CreateAppointment(
                     model.DoctorId,
-                    model.PatientId,
-                    slot.StartTime,
-                    slot.EndTime,
+                    currentUser.Id,
+                    slotId,
                     model.ReasonForVisit
                 );
 
-                // [REQ: US-APT-01.17] Show confirmation
+                // Get the doctor's information
                 var doctor = await _userManager.FindByIdAsync(model.DoctorId);
+                
+                // Get the slot information
+                var slot = await _appointmentService.GetSlotById(slotId);
+
+                // Prepare confirmation view model
                 var confirmationViewModel = new AppointmentConfirmationViewModel
                 {
-                    ReferenceNumber = _appointmentService.GenerateReferenceNumber(),
+                    ReferenceNumber = appointment.Id.ToString("D6"),
                     DoctorName = $"Dr. {doctor.FirstName} {doctor.LastName}",
                     AppointmentDate = slot.StartTime.Date,
                     TimeSlot = $"{slot.StartTime:HH:mm} - {slot.EndTime:HH:mm}",
-                    PatientName = model.PatientName,
+                    PatientName = $"{currentUser.FirstName} {currentUser.LastName}",
                     ReasonForVisit = model.ReasonForVisit
                 };
 
                 return View("Confirmation", confirmationViewModel);
             }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"An error occurred while scheduling the appointment: {ex.Message}";
+                return RedirectToAction(nameof(Schedule));
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+                return RedirectToAction("Login", "Account");
+
+            var query = User.IsInRole("Patient") 
+                ? _context.Appointments.Where(a => a.PatientId == currentUser.Id)
+                : User.IsInRole("Doctor") 
+                    ? _context.Appointments.Where(a => a.DoctorId == currentUser.Id)
+                    : _context.Appointments;
+
+            var appointments = await query
+                .Include(a => a.Doctor)
+                .Include(a => a.Patient)
+                .OrderByDescending(a => a.AppointmentDate)
+                .Select(a => new AppointmentViewModel
+                {
+                    Id = a.Id,
+                    AppointmentDate = a.AppointmentDate,
+                    Purpose = a.Purpose,
+                    DoctorName = $"Dr. {a.Doctor.FirstName} {a.Doctor.LastName}",
+                    PatientName = $"{a.Patient.FirstName} {a.Patient.LastName}",
+                    Status = a.Status
+                })
+                .ToListAsync();
+
+            return View(appointments);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+                return NotFound();
+
+            var appointment = await _context.Appointments
+                .Include(a => a.Doctor)
+                .Include(a => a.Patient)
+                .FirstOrDefaultAsync(a => a.Id == id);
+
+            if (appointment == null)
+                return NotFound();
+
+            if (appointment.PatientId != currentUser.Id && appointment.DoctorId != currentUser.Id && !User.IsInRole("Admin"))
+                return Forbid();
+
+            // Find and free up the slot
+            var slot = await _context.AppointmentSlots
+                .FirstOrDefaultAsync(s => s.DoctorId == appointment.DoctorId 
+                    && s.StartTime == appointment.StartTime);
+
+            if (slot != null)
+            {
+                slot.IsAvailable = true;
+            }
+
+            appointment.Status = "Cancelled";
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RescheduleAppointment(int id, DateTime newDateTime, string reason)
+        {
+            try
+            {
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser == null)
+                    return NotFound();
+
+                var appointment = await _context.Appointments.FindAsync(id);
+                if (appointment == null)
+                    return NotFound();
+
+                // Check if user has permission to reschedule
+                if (appointment.PatientId != currentUser.Id && 
+                    appointment.DoctorId != currentUser.Id && 
+                    !User.IsInRole("Admin"))
+                {
+                    return Forbid();
+                }
+
+                // Convert the newDateTime to UTC and normalize it
+                var utcDateTime = DateTime.SpecifyKind(newDateTime, DateTimeKind.Utc);
+                
+                // Store old values for audit
+                var oldDate = appointment.AppointmentDate;
+                var oldStatus = appointment.Status;
+
+                // Update appointment details
+                appointment.AppointmentDate = utcDateTime;
+                appointment.StartTime = utcDateTime;
+                appointment.EndTime = utcDateTime.AddMinutes(30);
+                appointment.Status = "Requested"; // Always set to Requested when rescheduling
+                appointment.LastModifiedById = currentUser.Id;
+                appointment.LastModifiedAt = DateTime.UtcNow;
+
+                // Create audit entry
+                var audit = new AppointmentAudit
+                {
+                    AppointmentId = appointment.Id,
+                    Action = "Reschedule",
+                    OldDateTime = oldDate,
+                    NewDateTime = utcDateTime,
+                    OldStatus = oldStatus,
+                    NewStatus = "Requested",
+                    Reason = reason,
+                    ModifiedById = currentUser.Id,
+                    ModifiedAt = DateTime.UtcNow
+                };
+
+                _context.AppointmentAudits.Add(audit);
+
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    TempData["SuccessMessage"] = "Appointment rescheduled successfully.";
+                    return RedirectToAction(nameof(Index));
+                }
+                catch (Exception)
+                {
+                    TempData["ErrorMessage"] = "Failed to save changes to the database.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "An error occurred while rescheduling the appointment.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmAppointment(int id)
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+                return NotFound();
+
+            if (!User.IsInRole("Doctor") && !User.IsInRole("Admin"))
+                return Forbid();
+
+            var appointment = await _context.Appointments.FindAsync(id);
+            if (appointment == null)
+                return NotFound();
+
+            // Check if doctor has permission to confirm
+            if (User.IsInRole("Doctor") && appointment.DoctorId != currentUser.Id)
+                return Forbid();
+
+            try
+            {
+                var success = await _appointmentService.ConfirmAppointment(id, currentUser.Id);
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "Appointment confirmed successfully.";
+                    return RedirectToAction(nameof(Index));
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Failed to confirm appointment.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
             catch (InvalidOperationException ex)
             {
-                ModelState.AddModelError("", ex.Message);
-                return View(model);
+                TempData["ErrorMessage"] = ex.Message;
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "An error occurred while confirming the appointment.";
+                return RedirectToAction(nameof(Index));
             }
         }
     }

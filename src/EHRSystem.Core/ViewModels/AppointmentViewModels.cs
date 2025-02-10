@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace EHRSystem.Core.ViewModels
 {
@@ -13,7 +14,10 @@ namespace EHRSystem.Core.ViewModels
         [Required(ErrorMessage = "Please select a doctor")]
         [Display(Name = "Doctor")]
         public string DoctorId { get; set; }
-        public List<SelectListItem> DoctorList { get; set; }
+
+        [Display(Name = "Doctor List")]
+        [ValidateNever]
+        public List<SelectListItem> DoctorList { get; set; } = new();
 
         // [REQ: US-APT-01.4] Date and time selection
         [Required(ErrorMessage = "Please select a date")]
@@ -24,7 +28,10 @@ namespace EHRSystem.Core.ViewModels
         [Required(ErrorMessage = "Please select a time slot")]
         [Display(Name = "Time Slot")]
         public string TimeSlotId { get; set; }
-        public List<SelectListItem> AvailableTimeSlots { get; set; }
+
+        [Display(Name = "Available Time Slots")]
+        [ValidateNever]
+        public List<SelectListItem> AvailableTimeSlots { get; set; } = new();
 
         // [REQ: US-APT-01.5] Appointment details
         [Required(ErrorMessage = "Please provide a reason for the visit")]
@@ -32,8 +39,11 @@ namespace EHRSystem.Core.ViewModels
         [Display(Name = "Reason for Visit")]
         public string ReasonForVisit { get; set; }
 
-        public string PatientId { get; set; }
-        public string PatientName { get; set; }
+        [ValidateNever]
+        public string? PatientId { get; set; }
+
+        [ValidateNever]
+        public string? PatientName { get; set; }
     }
 
     public class CalendarViewModel

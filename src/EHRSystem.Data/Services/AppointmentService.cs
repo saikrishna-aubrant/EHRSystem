@@ -24,35 +24,55 @@ namespace EHRSystem.Data.Services
         // [REQ: US-APT-01.8] Get available time slots
         public async Task<List<AppointmentSlot>> GetAvailableSlots(string doctorId, DateTime date)
         {
-            var startOfDay = date.Date.Add(WorkingHoursStart);
-            var endOfDay = date.Date.Add(WorkingHoursEnd);
-            var slots = new List<AppointmentSlot>();
-
-            // Get existing appointments for the doctor on this date
-            var existingAppointments = await _context.Appointments
-                .Where(a => a.DoctorId == doctorId &&
-                           a.StartTime.Date == date.Date &&
-                           a.Status != "Cancelled")
-                .ToListAsync();
-
-            // Generate all possible time slots
-            var currentTime = startOfDay;
-            while (currentTime.Add(SlotDuration) <= endOfDay)
+            try
             {
-                var slotEnd = currentTime.Add(SlotDuration);
-                var isAvailable = !existingAppointments.Any(a =>
-                    (a.StartTime <= currentTime && a.EndTime > currentTime) ||
-                    (a.StartTime < slotEnd && a.EndTime >= slotEnd));
+                // Ensure we're working with just the date part for comparison
+                var targetDate = date.Date;
 
-                slots.Add(new AppointmentSlot
+                // Get existing slots for the doctor on the selected date
+                var slots = await _context.AppointmentSlots
+                    .Where(s => s.DoctorId == doctorId 
+                        && s.StartTime.Date == targetDate
+                        && s.IsAvailable)
+                    .OrderBy(s => s.StartTime)
+                    .ToListAsync();
+
+                // If no slots exist for this date, create them
+                if (!slots.Any())
+                {
+                    var newSlots = GenerateTimeSlots(doctorId, targetDate);
+                    await _context.AppointmentSlots.AddRangeAsync(newSlots);
+                    await _context.SaveChangesAsync();
+                    return newSlots;
+                }
+
+                return slots;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Error getting available slots: {ex.Message}", ex);
+            }
+        }
+
+        private List<AppointmentSlot> GenerateTimeSlots(string doctorId, DateTime date)
+        {
+            var slots = new List<AppointmentSlot>();
+            var currentTime = date.Date.Add(WorkingHoursStart);
+            var endTime = date.Date.Add(WorkingHoursEnd);
+
+            while (currentTime.Add(SlotDuration) <= endTime)
+            {
+                var slot = new AppointmentSlot
                 {
                     DoctorId = doctorId,
                     StartTime = currentTime,
-                    EndTime = slotEnd,
-                    IsAvailable = isAvailable,
-                    HasBufferTime = false
-                });
+                    EndTime = currentTime.Add(SlotDuration),
+                    IsAvailable = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = doctorId // Set the doctor as the creator of the slots
+                };
 
+                slots.Add(slot);
                 currentTime = currentTime.Add(SlotDuration);
             }
 
@@ -81,29 +101,27 @@ namespace EHRSystem.Data.Services
         }
 
         // [REQ: US-APT-01.11] Create appointment with buffer time
-        public async Task<Appointment> CreateAppointment(string doctorId, string patientId, DateTime startTime, DateTime endTime, string purpose)
+        public async Task<Appointment> CreateAppointment(string doctorId, string patientId, int slotId, string purpose)
         {
-            // Normalize the date to handle time zone differences
-            var normalizedStartTime = startTime.Date.Add(startTime.TimeOfDay);
-            var normalizedEndTime = normalizedStartTime.Add(SlotDuration);
-
-            // Validate the time slot
-            if (!await IsSlotAvailable(doctorId, normalizedStartTime))
+            var slot = await GetSlotById(slotId);
+            if (slot == null || !slot.IsAvailable)
             {
-                throw new InvalidOperationException("Selected time slot is not available");
+                throw new InvalidOperationException("Selected time slot is not available.");
             }
 
             var appointment = new Appointment
             {
                 DoctorId = doctorId,
                 PatientId = patientId,
-                StartTime = normalizedStartTime,
-                EndTime = normalizedEndTime,
-                AppointmentDate = normalizedStartTime.Date,
+                StartTime = slot.StartTime,
+                EndTime = slot.EndTime,
+                AppointmentDate = slot.StartTime.Date,
                 Purpose = purpose,
                 Status = "Requested",
                 CreatedAt = DateTime.UtcNow
             };
+
+            slot.IsAvailable = false;
 
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
@@ -117,29 +135,19 @@ namespace EHRSystem.Data.Services
             return $"APT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8)}";
         }
 
-        // Add this method to the AppointmentService class
-        public async Task<bool> IsSlotAvailable(string doctorId, DateTime startTime)
+        public async Task<bool> IsSlotAvailable(int slotId, string doctorId, DateTime appointmentDate)
         {
-            // Normalize the date to handle time zone differences
-            var normalizedStartTime = startTime.Date.Add(startTime.TimeOfDay);
-            var endTime = normalizedStartTime.Add(SlotDuration);
-            
-            // Check if the slot is within working hours
-            var timeOfDay = normalizedStartTime.TimeOfDay;
-            if (timeOfDay < WorkingHoursStart || timeOfDay.Add(SlotDuration) > WorkingHoursEnd)
-            {
-                return false;
-            }
+            return await _context.AppointmentSlots
+                .AnyAsync(s => s.Id == slotId 
+                    && s.DoctorId == doctorId 
+                    && s.StartTime.Date == appointmentDate.Date 
+                    && s.IsAvailable);
+        }
 
-            // Check if there are any overlapping appointments
-            var hasOverlap = await _context.Appointments
-                .AnyAsync(a => a.DoctorId == doctorId &&
-                              a.Status != "Cancelled" &&
-                              a.StartTime.Date == normalizedStartTime.Date &&
-                              ((a.StartTime <= normalizedStartTime && a.EndTime > normalizedStartTime) ||
-                               (a.StartTime < endTime && a.EndTime >= endTime)));
-
-            return !hasOverlap;
+        public async Task<AppointmentSlot> GetSlotById(int slotId)
+        {
+            return await _context.AppointmentSlots
+                .FirstOrDefaultAsync(s => s.Id == slotId);
         }
 
         public async Task<bool> ConfirmAppointment(int appointmentId, string modifiedById)
@@ -184,101 +192,199 @@ namespace EHRSystem.Data.Services
             if (appointment == null)
                 return false;
 
-            // Check if cancellation is allowed (24 hours before)
-            if (appointment.AppointmentDate <= DateTime.UtcNow.AddHours(24))
-                throw new InvalidOperationException("Appointments can only be cancelled at least 24 hours in advance.");
+            // Only allow cancellation of Requested or Confirmed appointments
+            if (appointment.Status != "Requested" && appointment.Status != "Confirmed")
+                return false;
 
-            // Update appointment status
+            var modifier = await _context.Users.FindAsync(modifiedById);
+            if (modifier == null)
+                return false;
+
+            var userRoles = await _context.UserRoles
+                .Join(_context.Roles,
+                    ur => ur.RoleId,
+                    r => r.Id,
+                    (ur, r) => new { ur.UserId, r.Name })
+                .Where(ur => ur.UserId == modifiedById)
+                .Select(ur => ur.Name)
+                .ToListAsync();
+
+            // Only enforce 24-hour restriction for patients
+            if (!userRoles.Contains("Admin") && !userRoles.Contains("Doctor"))
+            {
+                if (appointment.AppointmentDate <= DateTime.Now.AddHours(24))
+                {
+                    throw new InvalidOperationException("Appointments can only be cancelled at least 24 hours in advance.");
+                }
+            }
+
+            var oldStatus = appointment.Status;
             appointment.Status = "Cancelled";
             appointment.LastModifiedById = modifiedById;
             appointment.LastModifiedAt = DateTime.UtcNow;
 
-            // Create audit trail
             var audit = new AppointmentAudit
             {
                 AppointmentId = appointmentId,
                 Action = "Cancel",
                 Reason = reason,
-                OldStatus = appointment.Status,
+                OldStatus = oldStatus,
                 NewStatus = "Cancelled",
                 ModifiedById = modifiedById,
                 ModifiedAt = DateTime.UtcNow
             };
-            _context.AppointmentAudits.Add(audit);
 
+            _context.AppointmentAudits.Add(audit);
             await _context.SaveChangesAsync();
+
             return true;
         }
 
         public async Task<bool> RescheduleAppointment(int appointmentId, DateTime newTimeSlot, string modifiedById, string reason)
         {
-            var appointment = await _context.Appointments
-                .Include(a => a.Doctor)
-                .Include(a => a.Patient)
-                .FirstOrDefaultAsync(a => a.Id == appointmentId);
-
-            if (appointment == null)
-                return false;
-
-            // Check if rescheduling is allowed (24 hours before)
-            if (appointment.AppointmentDate <= DateTime.UtcNow.AddHours(24))
-                throw new InvalidOperationException("Appointments can only be rescheduled at least 24 hours in advance.");
-
-            // Check if new time slot is available
-            if (!await IsTimeSlotAvailable(appointment.DoctorId, newTimeSlot, appointmentId))
-                throw new InvalidOperationException("Selected time slot is not available.");
-
-            // Store old values for audit
-            var oldDate = appointment.AppointmentDate;
-            var oldStatus = appointment.Status;
-
-            // Update appointment
-            appointment.AppointmentDate = newTimeSlot;
-            appointment.Status = "Requested"; // Reset to requested status for doctor to confirm
-            appointment.LastModifiedById = modifiedById;
-            appointment.LastModifiedAt = DateTime.UtcNow;
-
-            // Create audit trail
-            var audit = new AppointmentAudit
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                AppointmentId = appointmentId,
-                Action = "Reschedule",
-                Reason = reason,
-                OldStatus = oldStatus,
-                NewStatus = "Requested",
-                OldDateTime = oldDate,
-                NewDateTime = newTimeSlot,
-                ModifiedById = modifiedById,
-                ModifiedAt = DateTime.UtcNow
-            };
-            _context.AppointmentAudits.Add(audit);
+                var appointment = await _context.Appointments
+                    .Include(a => a.Doctor)
+                    .Include(a => a.Patient)
+                    .FirstOrDefaultAsync(a => a.Id == appointmentId);
 
-            await _context.SaveChangesAsync();
-            return true;
+                if (appointment == null)
+                    return false;
+
+                // Only allow rescheduling of Requested or Confirmed appointments
+                if (appointment.Status != "Requested" && appointment.Status != "Confirmed")
+                    throw new InvalidOperationException("Only requested or confirmed appointments can be rescheduled.");
+
+                var modifier = await _context.Users.FindAsync(modifiedById);
+                if (modifier == null)
+                    return false;
+
+                var userRoles = await _context.UserRoles
+                    .Join(_context.Roles,
+                        ur => ur.RoleId,
+                        r => r.Id,
+                        (ur, r) => new { ur.UserId, r.Name })
+                    .Where(ur => ur.UserId == modifiedById)
+                    .Select(ur => ur.Name)
+                    .ToListAsync();
+
+                // Only enforce 24-hour restriction for patients
+                if (!userRoles.Contains("Admin") && !userRoles.Contains("Doctor"))
+                {
+                    if (appointment.AppointmentDate <= DateTime.Now.AddHours(24))
+                    {
+                        throw new InvalidOperationException("Appointments can only be rescheduled at least 24 hours in advance.");
+                    }
+                }
+
+                // Normalize the new time slot to ensure proper time handling
+                var normalizedNewTimeSlot = DateTime.SpecifyKind(newTimeSlot, DateTimeKind.Utc);
+
+                // Check if the new time slot is within working hours
+                var timeOfDay = normalizedNewTimeSlot.TimeOfDay;
+                if (timeOfDay < WorkingHoursStart || timeOfDay >= WorkingHoursEnd)
+                {
+                    throw new InvalidOperationException("Selected time is outside of working hours (9 AM - 5 PM).");
+                }
+                
+                // Check if the new time slot is available
+                if (!await IsTimeSlotAvailable(appointment.DoctorId, normalizedNewTimeSlot, appointmentId))
+                {
+                    throw new InvalidOperationException("Selected time slot is not available.");
+                }
+
+                // Store old values for audit
+                var oldDate = appointment.AppointmentDate;
+                var oldStatus = appointment.Status;
+
+                // Update appointment times
+                appointment.AppointmentDate = normalizedNewTimeSlot.Date;
+                appointment.StartTime = normalizedNewTimeSlot;
+                appointment.EndTime = normalizedNewTimeSlot.AddMinutes(30);
+                appointment.Status = "Requested"; // Always set to Requested when rescheduling
+                appointment.LastModifiedById = modifiedById;
+                appointment.LastModifiedAt = DateTime.UtcNow;
+
+                // Create audit trail
+                var audit = new AppointmentAudit
+                {
+                    AppointmentId = appointmentId,
+                    Action = "Reschedule",
+                    Reason = reason,
+                    OldStatus = oldStatus,
+                    NewStatus = "Requested",
+                    OldDateTime = oldDate,
+                    NewDateTime = normalizedNewTimeSlot,
+                    ModifiedById = modifiedById,
+                    ModifiedAt = DateTime.UtcNow
+                };
+
+                _context.AppointmentAudits.Add(audit);
+
+                // Mark the old time slot as available and the new one as unavailable
+                var oldSlot = await _context.AppointmentSlots
+                    .FirstOrDefaultAsync(s => s.DoctorId == appointment.DoctorId && 
+                                            s.StartTime == oldDate);
+                if (oldSlot != null)
+                {
+                    oldSlot.IsAvailable = true;
+                }
+
+                var newSlot = await _context.AppointmentSlots
+                    .FirstOrDefaultAsync(s => s.DoctorId == appointment.DoctorId && 
+                                            s.StartTime == normalizedNewTimeSlot);
+                if (newSlot != null)
+                {
+                    newSlot.IsAvailable = false;
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                return false;
+            }
         }
 
         private async Task<bool> IsTimeSlotAvailable(string doctorId, DateTime startTime, int? excludeAppointmentId = null)
         {
             var endTime = startTime.AddMinutes(30);
-            var normalizedStartTime = startTime.ToUniversalTime();
-            var normalizedEndTime = endTime.ToUniversalTime();
+            
+            // Ensure times are in UTC
+            var normalizedStartTime = DateTime.SpecifyKind(startTime, DateTimeKind.Utc);
+            var normalizedEndTime = DateTime.SpecifyKind(endTime, DateTimeKind.Utc);
 
             // Check if there are any overlapping appointments
             var query = _context.Appointments
                 .Where(a => a.DoctorId == doctorId &&
                            a.Status != "Cancelled" &&
-                           a.AppointmentDate.Date == normalizedStartTime.Date);
+                           ((a.StartTime <= normalizedStartTime && a.EndTime > normalizedStartTime) ||
+                            (a.StartTime < normalizedEndTime && a.EndTime >= normalizedEndTime)));
 
             if (excludeAppointmentId.HasValue)
             {
                 query = query.Where(a => a.Id != excludeAppointmentId.Value);
             }
 
-            var hasOverlap = await query.AnyAsync(a =>
-                (a.AppointmentDate <= normalizedStartTime && a.AppointmentDate.AddMinutes(30) > normalizedStartTime) ||
-                (a.AppointmentDate < normalizedEndTime && a.AppointmentDate.AddMinutes(30) >= normalizedEndTime));
+            var hasOverlap = await query.AnyAsync();
 
-            return !hasOverlap;
+            // Also check if the time slot exists and is available
+            var slot = await _context.AppointmentSlots
+                .FirstOrDefaultAsync(s => s.DoctorId == doctorId && 
+                                        s.StartTime == normalizedStartTime);
+
+            // If no slot exists, create one
+            if (slot == null)
+            {
+                return true; // Allow booking if no explicit slot exists
+            }
+
+            return !hasOverlap && slot.IsAvailable;
         }
     }
 } 

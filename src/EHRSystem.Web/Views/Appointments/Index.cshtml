@@ -15,6 +15,13 @@
         }
     </div>
     <div class="card-body">
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead>
@@ -36,7 +43,7 @@
                             <td>
                                 <span class="badge bg-@(appointment.Status.ToLower() switch {
                                     "Requested" => "warning",
-                                    "Scheduled" => "success",
+                                    "Confirmed" => "success",
                                     "Cancelled" => "danger",
                                     _ => "secondary"
                                 })">@appointment.Status</span>
@@ -49,6 +56,9 @@
                                         <button class="btn btn-sm btn-success me-1" onclick="showConfirmModal(@appointment.Id)">
                                             <i class="bi bi-check-circle"></i> Confirm
                                         </button>
+                                    }
+                                    @if (appointment.Status == "Requested" || appointment.Status == "Confirmed")
+                                    {
                                         <button class="btn btn-sm btn-danger" onclick="showCancelModal(@appointment.Id)">
                                             <i class="bi bi-x-circle"></i> Cancel
                                         </button>
@@ -56,7 +66,7 @@
                                 }
                                 else if (User.IsInRole("Patient"))
                                 {
-                                    @if (appointment.Status == "Requested" || appointment.Status == "Scheduled")
+                                    @if (appointment.Status == "Requested" || appointment.Status == "Confirmed")
                                     {
                                         <button class="btn btn-sm btn-primary me-1" onclick="showRescheduleModal(@appointment.Id)">
                                             <i class="bi bi-calendar"></i> Reschedule
@@ -75,7 +85,7 @@
     </div>
 </div>
 
-<!-- Confirm Appointment Modal -->
+<!-- Confirm Modal -->
 <div class="modal fade" id="confirmModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -97,7 +107,7 @@
     </div>
 </div>
 
-<!-- Cancel Appointment Modal -->
+<!-- Cancel Modal -->
 <div class="modal fade" id="cancelModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -122,7 +132,7 @@
     </div>
 </div>
 
-<!-- Reschedule Appointment Modal -->
+<!-- Reschedule Modal -->
 <div class="modal fade" id="rescheduleModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -162,14 +172,86 @@
 
         function showCancelModal(appointmentId) {
             const form = document.getElementById('cancelForm');
-            form.action = `/Appointments/CancelAppointment/${appointmentId}`;
+            form.action = `/Appointments/Cancel/${appointmentId}`;
             new bootstrap.Modal(document.getElementById('cancelModal')).show();
         }
 
         function showRescheduleModal(appointmentId) {
             const form = document.getElementById('rescheduleForm');
             form.action = `/Appointments/RescheduleAppointment/${appointmentId}`;
-            new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
+            
+            // Set min date to tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setMinutes(tomorrow.getMinutes() - tomorrow.getTimezoneOffset());
+            document.getElementById('newDateTime').min = tomorrow.toISOString().slice(0, 16);
+            
+            const modal = new bootstrap.Modal(document.getElementById('rescheduleModal'));
+            modal.show();
         }
+
+        // Handle form submissions
+        ['rescheduleForm', 'cancelForm', 'confirmForm'].forEach(formId => {
+            document.getElementById(formId).addEventListener('submit', function(e) {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                const modal = bootstrap.Modal.getInstance(form.closest('.modal'));
+
+                // Special handling for reschedule form
+                if (formId === 'rescheduleForm') {
+                    const newDateTime = new Date(formData.get('newDateTime'));
+                    const reason = formData.get('reason');
+                    
+                    // Ensure the date is properly formatted in UTC
+                    const formattedDateTime = newDateTime.toISOString();
+                    
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'RequestVerificationToken': form.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: `newDateTime=${encodeURIComponent(formattedDateTime)}&reason=${encodeURIComponent(reason)}`
+                    })
+                    .then(async response => {
+                        if (!response.ok) {
+                            const text = await response.text();
+                            throw new Error(text || 'Failed to reschedule appointment');
+                        }
+                        if (modal) {
+                            modal.hide();
+                        }
+                        // Reload the page to show updated appointment
+                        window.location.reload();
+                    })
+                    .catch(error => {
+                        alert(error.message);
+                    });
+                } else {
+                    // Original handling for other forms
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': form.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: formData
+                    })
+                    .then(async response => {
+                        if (!response.ok) {
+                            const text = await response.text();
+                            throw new Error(text || 'Operation failed');
+                        }
+                        if (modal) {
+                            modal.hide();
+                        }
+                        window.location.reload();
+                    })
+                    .catch(error => {
+                        alert(error.message);
+                    });
+                }
+            });
+        });
     </script>
 } 

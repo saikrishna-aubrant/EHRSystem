@@ -38,18 +38,37 @@ namespace EHRSystem.Web.Controllers.Api
         {
             try
             {
+                if (string.IsNullOrEmpty(doctorId))
+                    return BadRequest("Doctor ID is required");
+
+                if (date == default)
+                    return BadRequest("Valid date is required");
+
+                // Verify doctor exists
+                var doctor = await _userManager.FindByIdAsync(doctorId);
+                if (doctor == null)
+                    return BadRequest("Doctor not found");
+
                 var slots = await _appointmentService.GetAvailableSlots(doctorId, date);
-                return Ok(slots.Where(s => s.IsAvailable).Select(s => new
-                {
-                    id = s.Id,
-                    startTime = s.StartTime,
-                    endTime = s.EndTime,
-                    text = $"{s.StartTime:HH:mm} - {s.EndTime:HH:mm}"
-                }));
+                
+                if (slots == null || !slots.Any())
+                    return Ok(new { message = "No available time slots found for the selected date" });
+
+                var availableSlots = slots.Where(s => s.IsAvailable)
+                    .Select(s => new
+                    {
+                        id = s.Id,
+                        startTime = s.StartTime,
+                        endTime = s.EndTime,
+                        text = $"{s.StartTime:HH:mm} - {s.EndTime:HH:mm}"
+                    })
+                    .ToList();
+
+                return Ok(availableSlots);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest($"Error loading time slots: {ex.Message}");
             }
         }
 
@@ -62,15 +81,18 @@ namespace EHRSystem.Web.Controllers.Api
                 if (currentUser == null)
                     return NotFound("User not found");
 
-                if (!await _appointmentService.IsSlotAvailable(request.DoctorId, request.TimeSlot))
+                // Get the slot to check its date
+                var slot = await _appointmentService.GetSlotById(request.TimeSlotId);
+                if (slot == null)
+                    return BadRequest("Invalid time slot");
+
+                if (!await _appointmentService.IsSlotAvailable(request.TimeSlotId, request.DoctorId, slot.StartTime.Date))
                     return BadRequest("Selected time slot is not available");
 
-                var endTime = request.TimeSlot.AddMinutes(30);
                 var appointment = await _appointmentService.CreateAppointment(
                     request.DoctorId,
                     currentUser.Id,
-                    request.TimeSlot,
-                    endTime,
+                    request.TimeSlotId,
                     request.Purpose
                 );
 
@@ -206,7 +228,7 @@ namespace EHRSystem.Web.Controllers.Api
     public class AppointmentRequestDto
     {
         public string DoctorId { get; set; }
-        public DateTime TimeSlot { get; set; }
+        public int TimeSlotId { get; set; }
         public string Purpose { get; set; }
     }
 
